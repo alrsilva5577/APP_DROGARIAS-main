@@ -49,7 +49,7 @@ if st.session_state["tela"] == "fluxo_inicial":
     
     tipo_licenca = st.radio(
         "Tipo de procedimento regulatório:",
-        ["Licença Sanitária Inicial", "Renovação de Licença Sanitária"],
+        ["Renovação de Licença Sanitária", "Licença Sanitária Inicial"],
         horizontal=True
     )
     
