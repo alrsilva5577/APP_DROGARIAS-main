@@ -20,14 +20,14 @@ def carregar_dados_excel():
 
 df_excel = carregar_dados_excel()
 
-# --- CONEXÃO COM O BANCO DE DADOS EM NUVEM COM DIAGNÓSTICO ---
+# --- CONEXÃO COM O BANCO DE DADOS EM NUVEM (MÉTODO UNIVERSAL) ---
 conn_nuvem = None
 try:
-    # Tenta estabelecer a conexão nativa
-    conn_nuvem = st.connection("gsheets", type="sheets")
+    # Usando st.connection("gsheets") sem o parâmetro type="sheets"
+    # O Python busca o pacote st-filesdb automaticamente para fazer a mágica
+    conn_nuvem = st.connection("gsheets")
 except Exception as e_conexao:
-    # Se falhar logo na inicialização, exibe o erro técnico na tela para sabermos o motivo
-    st.sidebar.error(f"⚠️ Falha na configuração do Secrets: {e_conexao}")
+    st.sidebar.error(f"⚠️ Falha na conexão com a nuvem: {e_conexao}")
 
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
 if "tela" not in st.session_state:
