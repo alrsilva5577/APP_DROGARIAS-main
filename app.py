@@ -24,7 +24,7 @@ df_excel = carregar_dados_excel()
 conn_nuvem = None
 try:
     # Tenta estabelecer a conexão nativa
-    conn_nuvem = st.connection("gsheets", type="connections.gsheets")
+    conn_nuvem = st.connection("gsheets", type="sheets")
 except Exception as e_conexao:
     # Se falhar logo na inicialização, exibe o erro técnico na tela para sabermos o motivo
     st.sidebar.error(f"⚠️ Falha na configuração do Secrets: {e_conexao}")
