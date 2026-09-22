@@ -343,7 +343,6 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                 if conn_nuvem is not None:
                     timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
                     chave_primaria_inspecao = f"{n_web}IS{timestamp_chave}"
-                    
                     texto_status_banco = ",".join(lista_salvamento_banco)
                     
                     nova_linha = pd.DataFrame([{
@@ -354,16 +353,11 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         "data_procedimento": data_atual,
                         "status_inspecao_itens": texto_status_banco
                     }])
+                    
                     try:
+                        # O comando 'create' agora funcionará pois o escopo de escrita foi liberado no secrets
                         conn_nuvem.create(worksheet="INSPECOES_DB", data=nova_linha)
-                        st.toast("💾 Respostas e status sincronizados na nuvem!", icon="☁️")
+                        st.toast("💾 Dados sincronizados na nuvem com sucesso!", icon="☁️")
                     except Exception as e:
-                        st.warning(f"⚠️ Erro de sincronismo com a nuvem: {e}")
-                        
-                st.download_button(
-                    label="💾 Clique aqui para salvar o arquivo .docx", 
-                    data=buffer, 
-                    file_name=f"Relatorio_Inspecao_{n_web}.docx", 
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-                st.success("✨ Relatório gerado com sucesso!")
+                        st.error(f"❌ Erro técnico de gravação na nuvem: {e}")
+                        st.warning("O relatório em Word foi gerado, mas os dados não puderam ser salvos no Google Sheets. Verifique o arquivo secrets.toml.")
