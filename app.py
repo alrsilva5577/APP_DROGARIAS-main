@@ -20,14 +20,31 @@ def carregar_dados_excel():
 
 df_excel = carregar_dados_excel()
 
-# --- CONEXÃO COM O BANCO DE DADOS EM NUVEM (GOOGLE SHEETS VIA SECRETS) ---
+# --- CONEXÃO COM O BANCO DE DADOS POSTGRESQL (SUPABASE) ---
 conn_nuvem = None
 try:
-    # Este comando busca de forma invisível o link configurado no painel de Secrets da nuvem
-    conn_nuvem = st.connection("gsheets", type="sheets")
+    # O Streamlit se conecta nativamente usando a chave [connections.sql] do secrets
+    conn_nuvem = st.connection("sql")
 except Exception as e_conexao:
-    # Caso haja algum erro técnico no Secrets, exibe o aviso na barra lateral
-    st.sidebar.error(f"⚠️ Falha na conexão com a nuvem: {e_conexao}")
+    st.sidebar.error(f"⚠️ Falha na conexão com o banco PostgreSQL: {e_conexao}")
+
+# --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE SE NÃO EXISTIR ---
+if conn_nuvem is not None:
+    try:
+        with conn_nuvem.session as s:
+            s.execute("""
+            CREATE TABLE IF NOT EXISTS inspecoes_db (
+                id_inspecao TEXT PRIMARY KEY,
+                id_renovacao TEXT,
+                cnpj_estabelecimento TEXT,
+                tipo_acao TEXT,
+                data_procedimento TEXT,
+                status_inspecao_itens TEXT
+            );
+            """)
+            s.commit()
+    except Exception as e:
+        st.sidebar.warning(f"Aviso de tabela: {e}")
 
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
 if "tela" not in st.session_state:
@@ -47,20 +64,16 @@ if "historico_pre_preenchido" not in st.session_state:
     st.session_state["historico_pre_preenchido"] = {}
 
 
-# --- FUNÇÃO AUXILIAR: BUSCA HISTÓRICO FRESH (SEM CACHE) ---
+# --- FUNÇÃO AUXILIAR: BUSCA HISTÓRICO NO POSTGRESQL ---
 def carregar_historico_cnpj(cnpj_alvo):
     if conn_nuvem is not None:
         try:
-            # O comando ttl=0 desativa o cache e obriga o app a ler o Google Sheets em tempo real
-            df_historico_completo = conn_nuvem.read(worksheet="INSPECOES_DB", ttl=0)
+            # Comando SQL liso para pegar o registro mais recente do CNPJ
+            query = f"SELECT status_inspecao_itens FROM inspecoes_db WHERE cnpj_estabelecimento = '{cnpj_alvo}' ORDER BY id_inspecao DESC LIMIT 1;"
+            df_resultado = conn_nuvem.query(query, ttl=0) # ttl=0 garante consulta fresca sem cache
             
-            # Filtra as inspeções apenas deste CNPJ
-            df_filtrado = df_historico_completo[df_historico_completo["cnpj_estabelecimento"].astype(str) == str(cnpj_alvo)]
-            
-            if not df_filtrado.empty:
-                ultima_inspecao = df_filtrado.iloc[-1]
-                string_status = str(ultima_inspecao["status_inspecao_itens"])
-                
+            if not df_resultado.empty:
+                string_status = str(df_resultado.iloc[0]["status_inspecao_itens"])
                 dicionario_respostas = {}
                 if string_status.strip() != "" and string_status != "nan":
                     pares = string_status.split(",")
@@ -68,11 +81,10 @@ def carregar_historico_cnpj(cnpj_alvo):
                         if ":" in par:
                             chave, valor = par.split(":")
                             dicionario_respostas[chave.strip()] = valor.strip()
-                
                 st.session_state["historico_pre_preenchido"] = dicionario_respostas
                 return True
         except Exception as e:
-            print(f"Erro ao ler histórico da nuvem: {e}")
+            print(f"Erro ao ler PostgreSQL: {e}")
             
     st.session_state["historico_pre_preenchido"] = {}
     return False
@@ -204,10 +216,10 @@ elif st.session_state["tela"] == "menu_opcoes":
                             buffer_exig.seek(0)
                             st.download_button(label="💾 Baixar Lista de Adequações (.docx)", data=buffer_exig, file_name=f"Lista_Adequacoes_{web_ativa}.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
                 except Exception as e:
-                    st.error(f"Erro ao acessar nuvem: {e}")
+                    st.error(f"Erro ao acessar SQL: {e}")
 
 # ==============================================================================
-# TELA 3: O FORMULÁRIO DE INSPEÇÃO SANITÁRIA (IS) COM MEMÓRIA TOTAL
+# TELA 3: O FORMULÁRIO DE INSPEÇÃO SANITÁRIA (IS) 
 # ==============================================================================
 elif st.session_state["tela"] == "inspecao_sanitaria":
     cnpj_estabelecimento = st.session_state["dados_processo"]["cnpj"]
@@ -342,35 +354,37 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     buffer.seek(0)
                     st.session_state["buffer_word_pronto"] = buffer.getvalue()
                     
-                    # --- GRAVAÇÃO AUTOMÁTICA EM NUVEM (CORRIGIDA) ---
+                    # --- GRAVAÇÃO AUTOMÁTICA NO BANCO SQL EM NUVEM (POSTGRESQL) ---
                     if conn_nuvem is not None:
                         timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
                         chave_primaria_inspecao = f"{n_web}IS{timestamp_chave}"
                         texto_status_banco = ",".join(lista_salvamento_banco)
                         
-                        nova_linha = pd.DataFrame([{
-                            "id_inspecao": chave_primaria_inspecao,
-                            "id_renovacao": n_web,
-                            "cnpj_estabelecimento": cnpj_estabelecimento,
-                            "tipo_acao": "IS",
-                            "data_procedimento": data_atual,
-                            "status_inspecao_itens": texto_status_banco
-                        }])
-                        
                         try:
-                            # 1. Envia os dados para a planilha Google
-                            conn_nuvem.create(worksheet="INSPECOES_DB", data=nova_linha)
-                            
-                            # 2. COMANDO MÁGICO: Limpa o cache do Streamlit para forçar a leitura do dado novo na próxima tela
-                            st.cache_data.clear()
-                            
+                            # Executa o comando INSERT oficial do SQL Alchemy / PostgreSQL
+                            with conn_nuvem.session as session:
+                                session.execute(
+                                    """
+                                    INSERT INTO inspecoes_db (id_inspecao, id_renovacao, cnpj_estabelecimento, tipo_acao, data_procedimento, status_inspecao_itens)
+                                    VALUES (:id_inspecao, :id_renovacao, :cnpj_estabelecimento, :tipo_acao, :data_procedimento, :status_inspecao_itens);
+                                    """,
+                                    {
+                                        "id_inspecao": chave_primaria_inspecao,
+                                        "id_renovacao": n_web,
+                                        "cnpj_estabelecimento": cnpj_estabelecimento,
+                                        "tipo_acao": "IS",
+                                        "data_procedimento": data_atual,
+                                        "status_inspecao_itens": texto_status_banco
+                                    }
+                                )
+                                session.commit()
                             st.session_state["gravou_nuvem_sucesso"] = True
                         except Exception as e:
                             st.session_state["erro_nuvem_mensagem"] = str(e)
                             st.session_state["gravou_nuvem_sucesso"] = False
                     else:
                         st.session_state["gravou_nuvem_sucesso"] = False
-                        st.session_state["erro_nuvem_mensagem"] = "Conexão com a nuvem indisponível."
+                        st.session_state["erro_nuvem_mensagem"] = "Banco SQL desconectado."
                         
                     st.rerun()
 
