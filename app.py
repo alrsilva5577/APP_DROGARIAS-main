@@ -20,12 +20,14 @@ def carregar_dados_excel():
 
 df_excel = carregar_dados_excel()
 
-# --- CONEXÃO COM A PLANILHA DO GOOGLE VIA LINK DIRETO ---
-# Transformamos o link de compartilhamento em um link de download direto de dados
-LINK_PLANILHA = "https://docs.google.com/spreadsheets/d/1Y52waA6sJXsnbR2V17Ot-ZMnI4os5NyGZA2YlJbpHy4/edit?usp=sharing"
-
-# Criamos uma variável simulando a conexão para o restante do código não quebrar
-conn_nuvem = "conectado"
+# --- CONEXÃO COM O BANCO DE DADOS EM NUVEM (GOOGLE SHEETS VIA SECRETS) ---
+conn_nuvem = None
+try:
+    # Este comando busca de forma invisível o link configurado no painel de Secrets da nuvem
+    conn_nuvem = st.connection("gsheets", type="sheets")
+except Exception as e_conexao:
+    # Caso haja algum erro técnico no Secrets, exibe o aviso na barra lateral
+    st.sidebar.error(f"⚠️ Falha na conexão com a nuvem: {e_conexao}")
 
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
 if "tela" not in st.session_state:
@@ -45,34 +47,35 @@ if "historico_pre_preenchido" not in st.session_state:
     st.session_state["historico_pre_preenchido"] = {}
 
 
-# --- FUNÇÃO AUXILIAR: BUSCA HISTÓRICO COMPLETO NA NUVEM ---
+# --- FUNÇÃO AUXILIAR: BUSCA HISTÓRICO FRESH (SEM CACHE) ---
 def carregar_historico_cnpj(cnpj_alvo):
-    try:
-        # O Pandas lê o link direto da internet sem precisar de nenhuma configuração de Secrets!
-        df_historico_completo = pd.read_csv(LINK_PLANILHA)
-        df_filtrado = df_historico_completo[df_historico_completo["cnpj_estabelecimento"].astype(str) == str(cnpj_alvo)]
-        
-        if not df_filtrado.empty:
-            ultima_inspecao = df_filtrado.iloc[-1]
-            string_status = str(ultima_inspecao["status_inspecao_itens"])
+    if conn_nuvem is not None:
+        try:
+            # O comando ttl=0 desativa o cache e obriga o app a ler o Google Sheets em tempo real
+            df_historico_completo = conn_nuvem.read(worksheet="INSPECOES_DB", ttl=0)
             
-            dicionario_respostas = {}
-            if string_status.strip() != "" and string_status != "nan":
-                pares = string_status.split(",")
-                for par in pares:
-                    if ":" in par:
-                        chave, valor = par.split(":")
-                        dicionario_respostas[chave.strip()] = valor.strip()
+            # Filtra as inspeções apenas deste CNPJ
+            df_filtrado = df_historico_completo[df_historico_completo["cnpj_estabelecimento"].astype(str) == str(cnpj_alvo)]
             
-            st.session_state["historico_pre_preenchido"] = dicionario_respostas
-            return True
-    except Exception as e:
-        print(f"Erro ao ler histórico: {e}")
-        
+            if not df_filtrado.empty:
+                ultima_inspecao = df_filtrado.iloc[-1]
+                string_status = str(ultima_inspecao["status_inspecao_itens"])
+                
+                dicionario_respostas = {}
+                if string_status.strip() != "" and string_status != "nan":
+                    pares = string_status.split(",")
+                    for par in pares:
+                        if ":" in par:
+                            chave, valor = par.split(":")
+                            dicionario_respostas[chave.strip()] = valor.strip()
+                
+                st.session_state["historico_pre_preenchido"] = dicionario_respostas
+                return True
+        except Exception as e:
+            print(f"Erro ao ler histórico da nuvem: {e}")
+            
     st.session_state["historico_pre_preenchido"] = {}
     return False
-
-
 
 # ==============================================================================
 # TELA 1: FLUXO INICIAL
@@ -339,28 +342,36 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     buffer.seek(0)
                     st.session_state["buffer_word_pronto"] = buffer.getvalue()
                     
-                    # --- GRAVAÇÃO AUTOMÁTICA EM NUVEM (GOOGLE SHEETS) ---
-                    timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    chave_primaria_inspecao = f"{n_web}IS{timestamp_chave}"
-                    texto_status_banco = ",".join(lista_salvamento_banco)
+                    # --- GRAVAÇÃO AUTOMÁTICA EM NUVEM (CORRIGIDA) ---
+                    if conn_nuvem is not None:
+                        timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        chave_primaria_inspecao = f"{n_web}IS{timestamp_chave}"
+                        texto_status_banco = ",".join(lista_salvamento_banco)
                         
-                    nova_linha = pd.DataFrame([{
-                        "id_inspecao": chave_primaria_inspecao,
-                        "id_renovacao": n_web,
-                        "cnpj_estabelecimento": cnpj_estabelecimento,
-                        "tipo_acao": "IS",
-                        "data_procedimento": data_atual,
-                        "status_inspecao_itens": texto_status_banco
-                    }])
-                    try:
-                        # Usamos a API do próprio Google Sheets para fazer o envio dos dados
-                        url_salvar = "https://docs.google.com/spreadsheets/d/1Y52waA6sJXsnbR2V17Ot-ZMnI4os5NyGZA2YlJbpHy4/edit?usp=sharing"
-                        # Para o piloto simplificado rodar sem travar a instalação, o dado será processado
-                        st.session_state["gravou_nuvem_sucesso"] = True
-                    except Exception as e:
-                        st.session_state["erro_nuvem_mensagem"] = str(e)
+                        nova_linha = pd.DataFrame([{
+                            "id_inspecao": chave_primaria_inspecao,
+                            "id_renovacao": n_web,
+                            "cnpj_estabelecimento": cnpj_estabelecimento,
+                            "tipo_acao": "IS",
+                            "data_procedimento": data_atual,
+                            "status_inspecao_itens": texto_status_banco
+                        }])
+                        
+                        try:
+                            # 1. Envia os dados para a planilha Google
+                            conn_nuvem.create(worksheet="INSPECOES_DB", data=nova_linha)
+                            
+                            # 2. COMANDO MÁGICO: Limpa o cache do Streamlit para forçar a leitura do dado novo na próxima tela
+                            st.cache_data.clear()
+                            
+                            st.session_state["gravou_nuvem_sucesso"] = True
+                        except Exception as e:
+                            st.session_state["erro_nuvem_mensagem"] = str(e)
+                            st.session_state["gravou_nuvem_sucesso"] = False
+                    else:
                         st.session_state["gravou_nuvem_sucesso"] = False
-                    
+                        st.session_state["erro_nuvem_mensagem"] = "Conexão com a nuvem indisponível."
+                        
                     st.rerun()
 
         # 2. ETAPA DE FEEDBACK E DOWNLOAD (Fora do botão anterior para evitar resets)
