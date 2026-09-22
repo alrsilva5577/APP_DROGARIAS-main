@@ -29,10 +29,15 @@ except Exception as e_conexao:
     st.sidebar.error(f"⚠️ Falha na conexão com o banco PostgreSQL: {e_conexao}")
 
 # --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE SE NÃO EXISTIR ---
+# --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE SE NÃO EXISTIR ---
 if conn_nuvem is not None:
     try:
+        # Importa a função de segurança exigida pelo SQLAlchemy
+        from sqlalchemy import text
+        
         with conn_nuvem.session as s:
-            s.execute("""
+            # Envelopamos o comando SQL com a função text()
+            s.execute(text("""
             CREATE TABLE IF NOT EXISTS inspecoes_db (
                 id_inspecao TEXT PRIMARY KEY,
                 id_renovacao TEXT,
@@ -41,10 +46,11 @@ if conn_nuvem is not None:
                 data_procedimento TEXT,
                 status_inspecao_itens TEXT
             );
-            """)
+            """))
             s.commit()
     except Exception as e:
         st.sidebar.warning(f"Aviso de tabela: {e}")
+
 
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
 if "tela" not in st.session_state:
@@ -361,13 +367,16 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         texto_status_banco = ",".join(lista_salvamento_banco)
                         
                         try:
-                            # Executa o comando INSERT oficial do SQL Alchemy / PostgreSQL
+                            # Importa a função text para garantir o escopo do botão
+                            from sqlalchemy import text
+                            
                             with conn_nuvem.session as session:
+                                # Envelopamos o INSERT com text() para o SQLAlchemy aceitar os parâmetros
                                 session.execute(
-                                    """
+                                    text("""
                                     INSERT INTO inspecoes_db (id_inspecao, id_renovacao, cnpj_estabelecimento, tipo_acao, data_procedimento, status_inspecao_itens)
                                     VALUES (:id_inspecao, :id_renovacao, :cnpj_estabelecimento, :tipo_acao, :data_procedimento, :status_inspecao_itens);
-                                    """,
+                                    """),
                                     {
                                         "id_inspecao": chave_primaria_inspecao,
                                         "id_renovacao": n_web,
