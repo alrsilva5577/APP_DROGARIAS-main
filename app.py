@@ -288,76 +288,101 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         st.divider()
         st.markdown("### 💾 Finalizar Relatório")
         
-        if st.button("📄 Gerar e Baixar Documento Word", type="primary"):
+        # 1. ETAPA DE PROCESSAMENTO (Grava no banco e prepara o Word na memória)
+        if st.button("⚙️ Processar Relatório e Salvar na Nuvem", type="primary", key="btn_processar_geral"):
             if df_excel is None:
                 st.error("Não é possível gerar o relatório sem carregar a planilha 'INFRACOES_DB.xlsx'.")
             else:
-                doc = Document()
-                cabecalho = f"Estabelecimento inspecionado em {data_atual} em atendimento a solicitação web nº {n_web} que trata da emissão de Licença Sanitária."
-                doc.add_paragraph(cabecalho)
-                
-                texto_contatos = "A inspeção foi acompanhada por: "
-                lista_contatos_formatados = []
-                for p in st.session_state["lista_pessoas"]:
-                    if p["nome"].strip() != "":
-                        info_pess = f"{p['nome']}, CPF: {p['cpf']}, cargo: {p['cargo']}, email: {p['email']}"
-                        lista_contatos_formatados.append(info_pess)
-                if lista_contatos_formatados:
-                    texto_contatos += "; ".join(lista_contatos_formatados) + "."
-                    doc.add_paragraph(texto_contatos)
+                with st.spinner("Sincronizando dados com o Google Sheets..."):
+                    # Montagem do Word
+                    doc = Document()
+                    cabecalho = f"Estabelecimento inspecionado em {data_atual} em atendimento a solicitação web nº {n_web} que trata da emissão de Licença Sanitária."
+                    doc.add_paragraph(cabecalho)
                     
-                frase_rt_final = ""
-                linha_rt = df_excel[df_excel["id_lei_artigo"] == "RDC44_3"]
-                
-                # Lista estruturada que registrará o status real para salvar na nuvem
-                lista_salvamento_banco = []
-                
-                if not linha_rt.empty:
-                    if status_rt == "C":
-                        frase_rt_final = str(linha_rt["frase_conforme"].values)
-                        lista_salvamento_banco.append("RDC44_3:C")
-                    elif status_rt == "NC":
-                        frase_rt_final = str(linha_rt["frase_nao_conforme"].values)
-                        lista_salvamento_banco.append("RDC44_3:NC")
-                    elif status_rt == "NA":
-                        lista_salvamento_banco.append("RDC44_3:NA")
-                    elif status_rt == "Não avaliado":
-                        # Se não foi avaliado, salva o status no banco, mas NÃO adiciona texto no Word
-                        lista_salvamento_banco.append("RDC44_3:Não avaliado")
+                    texto_contatos = "A inspeção foi acompanhada por: "
+                    lista_contatos_formatados = []
+                    for p in st.session_state["lista_pessoas"]:
+                        if p["nome"].strip() != "":
+                            info_pess = f"{p['nome']}, CPF: {p['cpf']}, cargo: {p['cargo']}, email: {p['email']}"
+                            lista_contatos_formatados.append(info_pess)
+                    if lista_contatos_formatados:
+                        texto_contatos += "; ".join(lista_contatos_formatados) + "."
+                        doc.add_paragraph(texto_contatos)
                         
-                if obs_rt.strip() != "":
-                    frase_rt_final += f" {obs_rt}" if frase_rt_final else obs_rt
-                if frase_rt_final:
-                    doc.add_paragraph(frase_rt_final)
+                    frase_rt_final = ""
+                    linha_rt = df_excel[df_excel["id_lei_artigo"] == "RDC44_3"]
+                    lista_salvamento_banco = []
                     
-                doc.add_paragraph("")
-                doc.add_heading("1- Informações gerais:", level=1)
-                info_gerais = f"Estabelecimento que desenvolve atividade enquadrada no Agrupamento 28 – Comércio Varejista de Medicamentos – CNAE Fiscal 4771-7/01 – Comércio Varejista de Produtos Farmacêuticos sem Manipulação de Fórmulas.\nNúmero de colaboradores: {num_colaboradores}."
-                doc.add_paragraph(info_gerais)
-                
-                buffer = io.BytesIO()
-                doc.save(buffer)
-                buffer.seek(0)
-                
-                # --- GRAVAÇÃO AUTOMÁTICA EM NUVEM (GOOGLE SHEETS) ---
-                if conn_nuvem is not None:
-                    timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    chave_primaria_inspecao = f"{n_web}IS{timestamp_chave}"
-                    texto_status_banco = ",".join(lista_salvamento_banco)
+                    if not linha_rt.empty:
+                        if status_rt == "C":
+                            frase_rt_final = str(linha_rt["frase_conforme"].values)
+                            lista_salvamento_banco.append("RDC44_3:C")
+                        elif status_rt == "NC":
+                            frase_rt_final = str(linha_rt["frase_nao_conforme"].values)
+                            lista_salvamento_banco.append("RDC44_3:NC")
+                        elif status_rt == "NA":
+                            lista_salvamento_banco.append("RDC44_3:NA")
+                        elif status_rt == "Não avaliado":
+                            lista_salvamento_banco.append("RDC44_3:Não avaliado")
+                            
+                    if obs_rt.strip() != "":
+                        frase_rt_final += f" {obs_rt}" if frase_rt_final else obs_rt
+                    if frase_rt_final:
+                        doc.add_paragraph(frase_rt_final)
+                        
+                    doc.add_paragraph("")
+                    doc.add_heading("1- Informações gerais:", level=1)
+                    info_gerais = f"Estabelecimento que desenvolve atividade enquadrada no Agrupamento 28 – Comércio Varejista de Medicamentos – CNAE Fiscal 4771-7/01 – Comércio Varejista de Produtos Farmacêuticos sem Manipulação de Fórmulas.\nNúmero de colaboradores: {num_colaboradores}."
+                    doc.add_paragraph(info_gerais)
                     
-                    nova_linha = pd.DataFrame([{
-                        "id_inspecao": chave_primaria_inspecao,
-                        "id_renovacao": n_web,
-                        "cnpj_estabelecimento": cnpj_estabelecimento,
-                        "tipo_acao": "IS",
-                        "data_procedimento": data_atual,
-                        "status_inspecao_itens": texto_status_banco
-                    }])
+                    # Salva o arquivo Word na memória da sessão para não perder no reload
+                    buffer = io.BytesIO()
+                    doc.save(buffer)
+                    buffer.seek(0)
+                    st.session_state["buffer_word_pronto"] = buffer.getvalue()
                     
-                    try:
-                        # O comando 'create' agora funcionará pois o escopo de escrita foi liberado no secrets
-                        conn_nuvem.create(worksheet="INSPECOES_DB", data=nova_linha)
-                        st.toast("💾 Dados sincronizados na nuvem com sucesso!", icon="☁️")
-                    except Exception as e:
-                        st.error(f"❌ Erro técnico de gravação na nuvem: {e}")
-                        st.warning("O relatório em Word foi gerado, mas os dados não puderam ser salvos no Google Sheets. Verifique o arquivo secrets.toml.")
+                    # --- GRAVAÇÃO AUTOMÁTICA EM NUVEM (GOOGLE SHEETS) ---
+                    if conn_nuvem is not None:
+                        timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        chave_primaria_inspecao = f"{n_web}IS{timestamp_chave}"
+                        texto_status_banco = ",".join(lista_salvamento_banco)
+                        
+                        nova_linha = pd.DataFrame([{
+                            "id_inspecao": chave_primaria_inspecao,
+                            "id_renovacao": n_web,
+                            "cnpj_estabelecimento": cnpj_estabelecimento,
+                            "tipo_acao": "IS",
+                            "data_procedimento": data_atual,
+                            "status_inspecao_itens": texto_status_banco
+                        }])
+                        try:
+                            # Envia os dados para a nuvem
+                            conn_nuvem.create(worksheet="INSPECOES_DB", data=nova_linha)
+                            st.session_state["gravou_nuvem_sucesso"] = True
+                        except Exception as e:
+                            st.session_state["erro_nuvem_mensagem"] = str(e)
+                            st.session_state["gravou_nuvem_sucesso"] = False
+                    else:
+                        st.session_state["gravou_nuvem_sucesso"] = False
+                        st.session_state["erro_nuvem_mensagem"] = "Conexão com a nuvem indisponível."
+                        
+                    st.rerun()
+
+        # 2. ETAPA DE FEEDBACK E DOWNLOAD (Fora do botão anterior para evitar resets)
+        if "gravou_nuvem_sucesso" in st.session_state:
+            if st.session_state["gravou_nuvem_sucesso"]:
+                st.success("✅ Dados salvos com sucesso na planilha do Google Sheets!")
+            else:
+                erro_txt = st.session_state.get("erro_nuvem_mensagem", "Erro desconhecido.")
+                st.error(f"❌ O Word foi gerado, mas houve um erro ao salvar no Google Sheets: {erro_txt}")
+                st.info("Verifique se as credenciais no Secrets da nuvem contêm a linha de 'scopes' corretamente.")
+
+            # Exibe o botão de download estável se o arquivo estiver pronto na memória
+            if "buffer_word_pronto" in st.session_state:
+                st.download_button(
+                    label="💾 Clique aqui para baixar o arquivo .docx", 
+                    data=st.session_state["buffer_word_pronto"], 
+                    file_name=f"Relatorio_Inspecao_{n_web}.docx", 
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key="btn_download_estavel"
+                )
