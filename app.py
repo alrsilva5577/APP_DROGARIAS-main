@@ -20,11 +20,14 @@ def carregar_dados_excel():
 
 df_excel = carregar_dados_excel()
 
-# --- CONEXÃO COM O BANCO DE DADOS EM NUVEM (GOOGLE SHEETS) ---
+# --- CONEXÃO COM O BANCO DE DADOS EM NUVEM COM DIAGNÓSTICO ---
+conn_nuvem = None
 try:
+    # Tenta estabelecer a conexão nativa
     conn_nuvem = st.connection("gsheets", type="connections.gsheets")
-except Exception:
-    conn_nuvem = None
+except Exception as e_conexao:
+    # Se falhar logo na inicialização, exibe o erro técnico na tela para sabermos o motivo
+    st.sidebar.error(f"⚠️ Falha na configuração do Secrets: {e_conexao}")
 
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
 if "tela" not in st.session_state:
