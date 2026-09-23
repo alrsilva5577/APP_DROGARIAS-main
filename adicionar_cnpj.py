@@ -13,7 +13,7 @@ st.markdown("Insira a lista de CNPJs. O sistema buscará os dados na Receita Fed
 conn_nuvem = None
 try:
     # Utiliza as mesmas credenciais do seu arquivo secrets.toml
-    conn_nuvem = st.connection("postgresql")
+    conn_nuvem = st.connection("postgresql", type="sql")
 except Exception as e:
     st.error(f"Erro ao conectar ao Supabase: {e}")
 
