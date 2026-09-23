@@ -187,6 +187,7 @@ if st.session_state["tela"] == "fluxo_inicial":
                             
                             # Grava automaticamente na tabela empresas_db do Supabase
                             if conn_nuvem is not None:
+                                from sqlalchemy import text
                                 with conn_nuvem.session as session:
                                     session.execute(text("""
                                         INSERT INTO empresas_db (cnpj, razao_social, endereco, bairro, cep, cnae, atividade)
