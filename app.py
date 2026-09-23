@@ -106,21 +106,19 @@ if st.session_state["tela"] == "fluxo_inicial":
         
         # --- MOTOR DE AUTOCOMPLETAR CNPJ EM TEMPO REAL ---
         cnpj_limpo = "".join(filter(str.isdigit, cnpj_digitado))
-        sugestoes_cnpj = []
-        
         if len(cnpj_limpo) >= 3 and conn_nuvem is not None:
             try:
-                from sqlalchemy import text
-                # Busca no Supabase os CNPJs que começam com o que o fiscal já digitou
+                # Passamos a string pura de texto. O Streamlit gerencia o cache e o hash perfeitamente.
                 query_sugestao = "SELECT cnpj, razao_social FROM empresas_db WHERE cnpj LIKE :termo LIMIT 5;"
-                df_sug = conn_nuvem.query(text(query_sugestao), params={"termo": f"{cnpj_limpo}%"}, ttl=0)
+                df_sug = conn_nuvem.query(query_sugestao, params={"termo": f"{cnpj_limpo}%"}, ttl=0)
+                
                 if not df_sug.empty:
                     st.markdown("*Drogarias encontradas na base:*")
                     for idx, row in df_sug.iterrows():
-                        # Exibe um aviso visual amigável embaixo do campo
                         st.caption(f"🔹 **{row['cnpj']}** - {row['razao_social']}")
-            except Exception:
-                pass
+            except Exception as e_sug:
+                # Imprime discretamente no terminal caso haja falha de sintaxe
+                print(f"Erro na sugestão: {e_sug}")
 
     st.divider()
 
@@ -146,8 +144,8 @@ if st.session_state["tela"] == "fluxo_inicial":
             empresa_localizada = False
             if conn_nuvem is not None:
                 try:
-                    from sqlalchemy import text
-                    df_emp = conn_nuvem.query(text("SELECT * FROM empresas_db WHERE cnpj = :cnpj LIMIT 1;"), params={"cnpj": cnpj_limpo}, ttl=0)
+                    query_checagem = "SELECT * FROM empresas_db WHERE cnpj = :cnpj LIMIT 1;"
+                    df_emp = conn_nuvem.query(query_checagem, params={"cnpj": cnpj_limpo}, ttl=0)
                     
                     if not df_emp.empty:
                         st.session_state["empresa_encontrada"] = {
