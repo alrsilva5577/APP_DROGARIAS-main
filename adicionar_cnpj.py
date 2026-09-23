@@ -55,7 +55,7 @@ if st.button("🚀 Iniciar Captura e Carga no Supabase", type="primary"):
                 
                 try:
                     # Consulta a API pública da BrasilAPI (Sem limite agressivo de travas por minuto)
-                    url_api = f"https://brasilapi.com.br{cnpj}"
+                    url_api = f"https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
                     resposta = requests.get(url_api, timeout=10)
                     
                     if resposta.status_code == 200:
