@@ -13,9 +13,29 @@ st.markdown("Insira a lista de CNPJs. O sistema buscará os dados na Receita Fed
 conn_nuvem = None
 try:
     # Utiliza as mesmas credenciais do seu arquivo secrets.toml
-    conn_nuvem = st.connection("postgresql", type="sql")
+    conn_nuvem = st.connection("postgresql")
 except Exception as e:
     st.error(f"Erro ao conectar ao Supabase: {e}")
+
+# --- NOVA: CRIAÇÃO AUTOMÁTICA DA TABELA DE EMPRESAS SE NÃO EXISTIR ---
+if conn_nuvem is not None:
+    try:
+        with conn_nuvem.session as s:
+            s.execute(text("""
+            CREATE TABLE IF NOT EXISTS empresas_db (
+                cnpj TEXT PRIMARY KEY,
+                razao_social TEXT,
+                endereco TEXT,
+                bairro TEXT,
+                cep TEXT,
+                cnae TEXT,
+                atividade TEXT
+            );
+            """))
+            s.commit()
+    except Exception as e_tabela:
+        st.error(f"Erro ao criar a tabela empresas_db: {e_tabela}")
+
 
 # Caixa de texto grande para colar os CNPJs (um por linha)
 st.markdown("### 📋 Digite ou cole os CNPJs (um por linha):")
