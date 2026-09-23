@@ -80,7 +80,6 @@ if "historico_pre_preenchido" not in st.session_state:
 def carregar_historico_cnpj(cnpj_alvo):
     if conn_nuvem is not None:
         try:
-            from sqlalchemy import text
             # Buscamos explicitamente os contatos e colaboradores na consulta SQL
             query = """
                 SELECT status_inspecao_itens, contatos_acompanhantes, numero_colaboradores 
@@ -92,6 +91,9 @@ def carregar_historico_cnpj(cnpj_alvo):
             df_resultado = conn_nuvem.query(text(query), params={"cnpj": str(cnpj_alvo)}, ttl=0)
             
             if not df_resultado.empty:
+                # CORREÇÃO 1: Usando .iloc[0] para extrair os dados da primeira linha do resultado
+                linha_dados = df_resultado.iloc[0]
+
                 # 1. Puxa os status das legislações (C, NC, NA)
                 string_status = str(df_resultado.iloc[0]["status_inspecao_itens"])
                 dicionario_respostas = {}
@@ -108,32 +110,38 @@ def carregar_historico_cnpj(cnpj_alvo):
                 st.session_state["num_colaboradores_historico"] = int(num_colab_hist) if pd.notna(num_colab_hist) else 0
                 
                 # 3. Reconstrói a lista de contatos/acompanhantes históricos
-                string_contatos = str(df_resultado.iloc[0]["contatos_acompanhantes"])
+                string_contatos = str(linha_dados["contatos_acompanhantes"])
                 if string_contatos.strip() != "" and string_contatos != "nan":
                     lista_reconstruida = []
                     # Quebra cada pessoa separada por ponto e vírgula
                     pessoas = string_contatos.split(";")
                     for pessoa in pessoas:
                         if "Nome:" in pessoa:
-                            # Isola os valores limpando as etiquetas de texto
+                            # Divide as informações limpando as tags de texto
                             partes = pessoa.split(" | ")
-                            nome = partes[0].replace("Nome: ", "").strip()
-                            cpf = partes[1].replace("CPF: ", "").strip()
-                            cargo = partes[2].replace("Cargo: ", "").strip()
-                            email = partes[3].replace("E-mail: ", "").strip()
-                            lista_reconstruida.append({"nome": nome, "cpf": cpf, "cargo": cargo, "email": email})
+                            nome, cpf, cargo, email = "", "", "", ""
+                            for parte in partes:
+                                if "Nome:" in parte: nome = parte.replace("Nome:", "").strip()
+                                if "CPF:" in parte: cpf = parte.replace("CPF:", "").strip()
+                                if "Cargo:" in parte: cargo = parte.replace("Cargo:", "").strip()
+                                if "E-mail:" in parte: email = parte.replace("E-mail:", "").strip()
+                            
+                            if nome or cpf:
+                                lista_reconstruida.append({"nome": nome, "cpf": cpf, "cargo": cargo, "email": email})
                     
                     if lista_reconstruida:
                         st.session_state["lista_pessoas"] = lista_reconstruida
+                    else:
+                        st.session_state["lista_pessoas"] = [{"nome": "", "cpf": "", "cargo": "", "email": ""}]
                 else:
-                    # Se não tinha contatos salvos, limpa para iniciar um em branco
                     st.session_state["lista_pessoas"] = [{"nome": "", "cpf": "", "cargo": "", "email": ""}]
                 
                 return True
         except Exception as e:
-            print(f"Erro ao ler histórico completo do PostgreSQL: {e}")
+            # Imprime o erro técnico no console para diagnóstico se algo falhar internamente
+            print(f"Erro ao descriptografar histórico do PostgreSQL: {e}")
             
-    # Se for empresa nova ou sem histórico, reseta a memória para os padrões limpos
+    # Se for empresa nova ou sem histórico, limpa tudo para os padrões em branco
     st.session_state["historico_pre_preenchido"] = {}
     st.session_state["lista_pessoas"] = [{"nome": "", "cpf": "", "cargo": "", "email": ""}]
     st.session_state["num_colaboradores_historico"] = 0
