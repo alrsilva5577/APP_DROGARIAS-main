@@ -4,6 +4,7 @@ from docx import Document
 import pandas as pd
 import requests
 import io
+from sqlalchemy import text
 
 # 1. Configurações iniciais da página
 st.set_page_config(page_title="Módulo de Inspeção", layout="wide")
@@ -39,7 +40,6 @@ except Exception as e_conexao:
 # --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE SE NÃO EXISTIR (ATUALIZADA) ---
 if conn_nuvem is not None:
     try:
-        from sqlalchemy import text
         with conn_nuvem.session as s:
             s.execute(text("""
             CREATE TABLE IF NOT EXISTS inspecoes_db (
@@ -81,9 +81,9 @@ def carregar_historico_cnpj(cnpj_alvo):
     if conn_nuvem is not None:
         try:
             from sqlalchemy import text
-            # Atualizamos o SELECT para buscar também o número de colaboradores e acompanhantes
+            # Buscamos explicitamente os contatos e colaboradores na consulta SQL
             query = """
-                SELECT status_inspecao_itens, numero_colaboradores, acompanhantes_inspecao 
+                SELECT status_inspecao_itens, contatos_acompanhantes, numero_colaboradores 
                 FROM inspecoes_db 
                 WHERE cnpj_estabelecimento = :cnpj 
                 ORDER BY id_inspecao DESC 
@@ -92,7 +92,7 @@ def carregar_historico_cnpj(cnpj_alvo):
             df_resultado = conn_nuvem.query(text(query), params={"cnpj": str(cnpj_alvo)}, ttl=0)
             
             if not df_resultado.empty:
-                # 1. Recupera o histórico de respostas técnicos (C, NC, NA)
+                # 1. Puxa os status das legislações (C, NC, NA)
                 string_status = str(df_resultado.iloc[0]["status_inspecao_itens"])
                 dicionario_respostas = {}
                 if string_status.strip() != "" and string_status != "nan":
@@ -103,38 +103,40 @@ def carregar_historico_cnpj(cnpj_alvo):
                             dicionario_respostas[chave.strip()] = valor.strip()
                 st.session_state["historico_pre_preenchido"] = dicionario_respostas
                 
-                # 2. Recupera o número de funcionários
-                num_colab_banco = df_resultado.iloc[0]["numero_colaboradores"]
-                st.session_state["num_colaboradores_banco"] = int(num_colab_banco) if pd.notna(num_colab_banco) else 0
+                # 2. Puxa o número de colaboradores históricos
+                num_colab_hist = df_resultado.iloc[0]["numero_colaboradores"]
+                st.session_state["num_colaboradores_historico"] = int(num_colab_hist) if pd.notna(num_colab_hist) else 0
                 
-                # 3. Recupera e reconstrói a lista de acompanhantes
-                txt_acompanhantes = str(df_resultado.iloc[0]["acompanhantes_inspecao"])
-                lista_reconstruida = []
-                if txt_acompanhantes.strip() != "" and txt_acompanhantes != "nan":
-                    pessoas_brutas = txt_acompanhantes.split(" | ")
-                    for pess in pessoas_brutas:
-                        if "/" in pess:
-                            partes = pess.split("/")
-                            lista_reconstruida.append({
-                                "nome": partes[0] if len(partes) > 0 else "",
-                                "cpf": partes[1] if len(partes) > 1 else "",
-                                "cargo": partes[2] if len(partes) > 2 else "",
-                                "email": partes[3] if len(partes) > 3 else ""
-                            })
-                
-                if lista_reconstruida:
-                    st.session_state["lista_pessoas"] = lista_reconstruida
+                # 3. Reconstrói a lista de contatos/acompanhantes históricos
+                string_contatos = str(df_resultado.iloc[0]["contatos_acompanhantes"])
+                if string_contatos.strip() != "" and string_contatos != "nan":
+                    lista_reconstruida = []
+                    # Quebra cada pessoa separada por ponto e vírgula
+                    pessoas = string_contatos.split(";")
+                    for pessoa in pessoas:
+                        if "Nome:" in pessoa:
+                            # Isola os valores limpando as etiquetas de texto
+                            partes = pessoa.split(" | ")
+                            nome = partes[0].replace("Nome: ", "").strip()
+                            cpf = partes[1].replace("CPF: ", "").strip()
+                            cargo = partes[2].replace("Cargo: ", "").strip()
+                            email = partes[3].replace("E-mail: ", "").strip()
+                            lista_reconstruida.append({"nome": nome, "cpf": cpf, "cargo": cargo, "email": email})
+                    
+                    if lista_reconstruida:
+                        st.session_state["lista_pessoas"] = lista_reconstruida
                 else:
+                    # Se não tinha contatos salvos, limpa para iniciar um em branco
                     st.session_state["lista_pessoas"] = [{"nome": "", "cpf": "", "cargo": "", "email": ""}]
                 
                 return True
         except Exception as e:
-            print(f"Erro ao ler PostgreSQL: {e}")
+            print(f"Erro ao ler histórico completo do PostgreSQL: {e}")
             
-    # Se for empresa nova, redefine os estados iniciais limpos
+    # Se for empresa nova ou sem histórico, reseta a memória para os padrões limpos
     st.session_state["historico_pre_preenchido"] = {}
-    st.session_state["num_colaboradores_banco"] = 0
     st.session_state["lista_pessoas"] = [{"nome": "", "cpf": "", "cargo": "", "email": ""}]
+    st.session_state["num_colaboradores_historico"] = 0
     return False
 
 # ==============================================================================
@@ -244,7 +246,6 @@ if st.session_state["tela"] == "fluxo_inicial":
                             
                             # Grava automaticamente na tabela empresas_db do Supabase
                             if conn_nuvem is not None:
-                                from sqlalchemy import text
                                 with conn_nuvem.session as session:
                                     session.execute(text("""
                                         INSERT INTO empresas_db (cnpj, razao_social, endereco, bairro, cep, cnae, atividade)
@@ -371,8 +372,14 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         st.divider()
         st.markdown("#### Informações")
         st.markdown("**Número de colaboradores:**")
-        num_colaboradores = st.number_input("Número de colaboradores:", min_value=0, step=1, value=0, label_visibility="collapsed")
-        
+        # Busca o dado que veio do banco de dados, se não achar nada inicia com 0
+        num_padrao = st.session_state.get("num_colaboradores_historico", 0)
+
+        num_colaboradores = st.number_input(
+            "Número de colaboradores:", 
+            min_value=0, step=1, 
+            value=num_padrao # Resgata o histórico do Supabase automaticamente!
+        )
         st.divider()
         col_rt, col_botao = st.columns([3, 1])
         
@@ -478,7 +485,6 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         texto_pessoas_banco = " | ".join(lista_salvamento_pessoas)
                         
                         try:
-                            from sqlalchemy import text
                             with conn_nuvem.session as session:
                                 # Adicionamos os novos campos e parâmetros no comando INSERT do SQL
                                 session.execute(
