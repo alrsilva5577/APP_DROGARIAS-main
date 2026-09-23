@@ -36,6 +36,27 @@ try:
 except Exception as e_conexao:
     st.sidebar.error(f"⚠️ Falha na conexão com o banco PostgreSQL: {e_conexao}")
 
+# --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE SE NÃO EXISTIR (ATUALIZADA) ---
+if conn_nuvem is not None:
+    try:
+        from sqlalchemy import text
+        with conn_nuvem.session as s:
+            s.execute(text("""
+            CREATE TABLE IF NOT EXISTS inspecoes_db (
+                id_inspecao TEXT PRIMARY KEY,
+                id_renovacao TEXT,
+                cnpj_estabelecimento TEXT,
+                tipo_acao TEXT,
+                data_procedimento TEXT,
+                status_inspecao_itens TEXT,
+                numero_colaboradores INTEGER,
+                acompanhantes_inspecao TEXT
+            );
+            """))
+            s.commit()
+    except Exception as e:
+        st.sidebar.warning(f"Aviso de tabela: {e}")
+
 
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
 if "tela" not in st.session_state:
@@ -59,11 +80,19 @@ if "historico_pre_preenchido" not in st.session_state:
 def carregar_historico_cnpj(cnpj_alvo):
     if conn_nuvem is not None:
         try:
-            # Comando SQL liso para pegar o registro mais recente do CNPJ
-            query = f"SELECT status_inspecao_itens FROM inspecoes_db WHERE cnpj_estabelecimento = '{cnpj_alvo}' ORDER BY id_inspecao DESC LIMIT 1;"
-            df_resultado = conn_nuvem.query(query, ttl=0) # ttl=0 garante consulta fresca sem cache
+            from sqlalchemy import text
+            # Atualizamos o SELECT para buscar também o número de colaboradores e acompanhantes
+            query = """
+                SELECT status_inspecao_itens, numero_colaboradores, acompanhantes_inspecao 
+                FROM inspecoes_db 
+                WHERE cnpj_estabelecimento = :cnpj 
+                ORDER BY id_inspecao DESC 
+                LIMIT 1;
+            """
+            df_resultado = conn_nuvem.query(text(query), params={"cnpj": str(cnpj_alvo)}, ttl=0)
             
             if not df_resultado.empty:
+                # 1. Recupera o histórico de respostas técnicos (C, NC, NA)
                 string_status = str(df_resultado.iloc[0]["status_inspecao_itens"])
                 dicionario_respostas = {}
                 if string_status.strip() != "" and string_status != "nan":
@@ -73,11 +102,39 @@ def carregar_historico_cnpj(cnpj_alvo):
                             chave, valor = par.split(":")
                             dicionario_respostas[chave.strip()] = valor.strip()
                 st.session_state["historico_pre_preenchido"] = dicionario_respostas
+                
+                # 2. Recupera o número de funcionários
+                num_colab_banco = df_resultado.iloc[0]["numero_colaboradores"]
+                st.session_state["num_colaboradores_banco"] = int(num_colab_banco) if pd.notna(num_colab_banco) else 0
+                
+                # 3. Recupera e reconstrói a lista de acompanhantes
+                txt_acompanhantes = str(df_resultado.iloc[0]["acompanhantes_inspecao"])
+                lista_reconstruida = []
+                if txt_acompanhantes.strip() != "" and txt_acompanhantes != "nan":
+                    pessoas_brutas = txt_acompanhantes.split(" | ")
+                    for pess in pessoas_brutas:
+                        if "/" in pess:
+                            partes = pess.split("/")
+                            lista_reconstruida.append({
+                                "nome": partes[0] if len(partes) > 0 else "",
+                                "cpf": partes[1] if len(partes) > 1 else "",
+                                "cargo": partes[2] if len(partes) > 2 else "",
+                                "email": partes[3] if len(partes) > 3 else ""
+                            })
+                
+                if lista_reconstruida:
+                    st.session_state["lista_pessoas"] = lista_reconstruida
+                else:
+                    st.session_state["lista_pessoas"] = [{"nome": "", "cpf": "", "cargo": "", "email": ""}]
+                
                 return True
         except Exception as e:
             print(f"Erro ao ler PostgreSQL: {e}")
             
+    # Se for empresa nova, redefine os estados iniciais limpos
     st.session_state["historico_pre_preenchido"] = {}
+    st.session_state["num_colaboradores_banco"] = 0
+    st.session_state["lista_pessoas"] = [{"nome": "", "cpf": "", "cargo": "", "email": ""}]
     return False
 
 # ==============================================================================
@@ -405,21 +462,29 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     st.session_state["buffer_word_pronto"] = buffer.getvalue()
                     
                     # --- GRAVAÇÃO AUTOMÁTICA NO BANCO SQL EM NUVEM (POSTGRESQL) ---
+                                        # --- GRAVAÇÃO AUTOMÁTICA EM NUVEM (POSTGRESQL ATUALIZADA) ---
                     if conn_nuvem is not None:
                         timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
                         chave_primaria_inspecao = f"{n_web}IS{timestamp_chave}"
                         texto_status_banco = ",".join(lista_salvamento_banco)
                         
+                        # Transforma a lista dinâmica de pessoas em uma única linha de texto limpa para o banco
+                        lista_salvamento_pessoas = []
+                        for p in st.session_state["lista_pessoas"]:
+                            if p["nome"].strip() != "":
+                                # Guarda no formato: Nome/CPF/Cargo/Email
+                                info_compacta = f"{p['nome'].strip()}/{p['cpf'].strip()}/{p['cargo'].strip()}/{p['email'].strip()}"
+                                lista_salvamento_pessoas.append(info_compacta)
+                        texto_pessoas_banco = " | ".join(lista_salvamento_pessoas)
+                        
                         try:
-                            # Importa a função text para garantir o escopo do botão
                             from sqlalchemy import text
-                            
                             with conn_nuvem.session as session:
-                                # Envelopamos o INSERT com text() para o SQLAlchemy aceitar os parâmetros
+                                # Adicionamos os novos campos e parâmetros no comando INSERT do SQL
                                 session.execute(
                                     text("""
-                                    INSERT INTO inspecoes_db (id_inspecao, id_renovacao, cnpj_estabelecimento, tipo_acao, data_procedimento, status_inspecao_itens)
-                                    VALUES (:id_inspecao, :id_renovacao, :cnpj_estabelecimento, :tipo_acao, :data_procedimento, :status_inspecao_itens);
+                                    INSERT INTO inspecoes_db (id_inspecao, id_renovacao, cnpj_estabelecimento, tipo_acao, data_procedimento, status_inspecao_itens, numero_colaboradores, acompanhantes_inspecao)
+                                    VALUES (:id_inspecao, :id_renovacao, :cnpj_estabelecimento, :tipo_acao, :data_procedimento, :status_inspecao_itens, :numero_colaboradores, :acompanhantes_inspecao);
                                     """),
                                     {
                                         "id_inspecao": chave_primaria_inspecao,
@@ -427,7 +492,9 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                                         "cnpj_estabelecimento": cnpj_estabelecimento,
                                         "tipo_acao": "IS",
                                         "data_procedimento": data_atual,
-                                        "status_inspecao_itens": texto_status_banco
+                                        "status_inspecao_itens": texto_status_banco,
+                                        "numero_colaboradores": int(num_colaboradores),
+                                        "acompanhantes_inspecao": texto_pessoas_banco
                                     }
                                 )
                                 session.commit()
@@ -435,11 +502,8 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         except Exception as e:
                             st.session_state["erro_nuvem_mensagem"] = str(e)
                             st.session_state["gravou_nuvem_sucesso"] = False
-                    else:
-                        st.session_state["gravou_nuvem_sucesso"] = False
-                        st.session_state["erro_nuvem_mensagem"] = "Banco SQL desconectado."
-                        
                     st.rerun()
+
 
         # 2. ETAPA DE FEEDBACK E DOWNLOAD (Fora do botão anterior para evitar resets)
         if "gravou_nuvem_sucesso" in st.session_state:
