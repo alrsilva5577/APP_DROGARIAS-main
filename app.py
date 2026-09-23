@@ -166,7 +166,7 @@ if st.session_state["tela"] == "fluxo_inicial":
             if not empresa_localizada:
                 with st.spinner("🕵️ CNPJ inédito! Consultando base nacional da Receita Federal..."):
                     try:
-                        url_api = f"https://brasilapi.com.br{cnpj_limpo}"
+                        url_api = f"https://brasilapi.com.br/api/cnpj/v1/{cnpj_limpo}"
                         resposta = requests.get(url_api, timeout=10)
                         
                         if resposta.status_code == 200:
