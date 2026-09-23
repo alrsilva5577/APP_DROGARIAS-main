@@ -2,23 +2,31 @@ import streamlit as st
 from datetime import datetime
 from docx import Document
 import pandas as pd
+import requests
 import io
 
 # 1. Configurações iniciais da página
 st.set_page_config(page_title="Módulo de Inspeção", layout="wide")
 st.title("💊 Sistema de Gestão de Inspeções - DROGARIAS")
 
-# --- LEITURA DIRETA DO ARQUIVO EXCEL DE LEIS (LOCAL) ---
+# --- LEITURA DOS ARQUIVOS EXCEL LOCAIS (LEIS E FISCAIS) ---
 @st.cache_data 
-def carregar_dados_excel():
+def carregar_dados_locais():
     try:
-        df = pd.read_excel("INFRACOES_DB.xlsx")
-        return df
+        df_inf = pd.read_excel("INFRACOES_DB.xlsx")
     except FileNotFoundError:
-        st.error("❌ Erro: O arquivo 'INFRACOES_DB.xlsx' não foi encontrado na raiz do projeto.")
-        return None
+        st.error("❌ Erro: O arquivo 'INFRACOES_DB.xlsx' não foi encontrado.")
+        df_inf = None
+        
+    try:
+        df_fisc = pd.read_excel("FISCAIS_DB.xlsx")
+    except FileNotFoundError:
+        st.error("❌ Erro: O arquivo 'FISCAIS_DB.xlsx' não foi encontrado.")
+        df_fisc = None
+        
+    return df_inf, df_fisc
 
-df_excel = carregar_dados_excel()
+df_excel, df_fiscais = carregar_dados_locais()
 
 # --- CONEXÃO COM O BANCO DE DADOS POSTGRESQL (SUPABASE) ---
 conn_nuvem = None
@@ -27,28 +35,6 @@ try:
     conn_nuvem = st.connection("postgresql", type="sql")
 except Exception as e_conexao:
     st.sidebar.error(f"⚠️ Falha na conexão com o banco PostgreSQL: {e_conexao}")
-
-# --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE SE NÃO EXISTIR ---
-if conn_nuvem is not None:
-    try:
-        # Importa a função de segurança exigida pelo SQLAlchemy
-        from sqlalchemy import text
-        
-        with conn_nuvem.session as s:
-            # Envelopamos o comando SQL com a função text()
-            s.execute(text("""
-            CREATE TABLE IF NOT EXISTS inspecoes_db (
-                id_inspecao TEXT PRIMARY KEY,
-                id_renovacao TEXT,
-                cnpj_estabelecimento TEXT,
-                tipo_acao TEXT,
-                data_procedimento TEXT,
-                status_inspecao_itens TEXT
-            );
-            """))
-            s.commit()
-    except Exception as e:
-        st.sidebar.warning(f"Aviso de tabela: {e}")
 
 
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
@@ -98,71 +84,131 @@ def carregar_historico_cnpj(cnpj_alvo):
 # TELA 1: FLUXO INICIAL
 # ==============================================================================
 if st.session_state["tela"] == "fluxo_inicial":
-    st.subheader("1. Identificação do Procedimento")
+    st.subheader("1. Identificação da Inspeção")
     
-    tipo_licenca = st.radio(
-        "Tipo de procedimento regulatório:",
-        ["Renovação de Licença Sanitária", "Licença Sanitária Inicial"],
-        horizontal=True
-    )
+    col1, col2 = st.columns(2)
     
+    with col1:
+        st.markdown("**Número da Solicitação WEB**")
+        web = st.text_input("WEB Entrada", key="init_web", label_visibility="collapsed", placeholder="Ex: 2026-X812")
+        
+        st.markdown("**Fiscal Responsável**")
+        # Puxa dinamicamente a lista de apelidos do arquivo Excel FISCAIS_DB
+        lista_apelidos = ["Selecione o fiscal..."]
+        if df_fiscais is not None and "apelido" in df_fiscais.columns:
+            lista_apelidos.extend(df_fiscais["apelido"].dropna().tolist())
+            
+        fiscal_selecionado = st.selectbox("Fiscal Entrada", options=lista_apelidos, key="init_fiscal", label_visibility="collapsed")
+
+    with col2:
+        st.markdown("**CNPJ do Estabelecimento (apenas números)**")
+        cnpj_digitado = st.text_input("CNPJ Entrada", key="init_cnpj_text", max_chars=14, label_visibility="collapsed", placeholder="Digite os 14 números")
+        
+        # --- MOTOR DE AUTOCOMPLETAR CNPJ EM TEMPO REAL ---
+        cnpj_limpo = "".join(filter(str.isdigit, cnpj_digitado))
+        sugestoes_cnpj = []
+        
+        if len(cnpj_limpo) >= 3 and conn_nuvem is not None:
+            try:
+                from sqlalchemy import text
+                # Busca no Supabase os CNPJs que começam com o que o fiscal já digitou
+                query_sugestao = "SELECT cnpj, razao_social FROM empresas_db WHERE cnpj LIKE :termo LIMIT 5;"
+                df_sug = conn_nuvem.query(text(query_sugestao), params={"termo": f"{cnpj_limpo}%"}, ttl=0)
+                if not df_sug.empty:
+                    st.markdown("*Drogarias encontradas na base:*")
+                    for idx, row in df_sug.iterrows():
+                        # Exibe um aviso visual amigável embaixo do campo
+                        st.caption(f"🔹 **{row['cnpj']}** - {row['razao_social']}")
+            except Exception:
+                pass
+
     st.divider()
-    
-    # 1. FLUXO DE RENOVAÇÃO (Primeira opção agora)
-    if tipo_licenca == "Renovação de Licença Sanitária":
-        st.markdown("#### 🔄 Renovação de Licença Existente")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**CNPJ do Estabelecimento (apenas números)**")
-            cnpj = st.text_input("CNPJ Renovação", key="ren_cnpj", max_chars=14, label_visibility="collapsed")
-        with col2:
-            st.markdown("**Número da WEB**")
-            web = st.text_input("WEB Renovação", key="ren_web", label_visibility="collapsed")
-            
-        if st.button("Avançar para Opções", type="primary", key="btn_ren_avancar"):
-            if cnpj and web:
-                # Busca o histórico da última inspeção na nuvem para pré-preenchimento
-                com_historico = carregar_historico_cnpj(cnpj)
-                
-                st.session_state["dados_processo"] = {"cnpj": cnpj, "web": web}
-                st.session_state["tela"] = "menu_opcoes"
-                
-                if com_historico:
-                    st.toast("📥 Histórico da inspeção anterior carregado com sucesso!", icon="🔄")
-                st.rerun()
-            else:
-                st.error("❌ Preencha os campos CNPJ e Número da WEB.")
 
-    # 2. FLUXO DE LICENÇA INICIAL (Segunda opção agora)
-    else:
-        st.markdown("#### 🆕 Cadastro do Estabelecimento Novo")
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Razão Social**")
-            rz = st.text_input("Razão Social", key="ini_rz", label_visibility="collapsed")
-            st.markdown("**CNPJ (apenas números)**")
-            cnpj = st.text_input("CNPJ", key="ini_cnpj", max_chars=14, label_visibility="collapsed")
-            st.markdown("**Número da WEB**")
-            web = st.text_input("WEB", key="ini_web", label_visibility="collapsed")
-        with col2:
-            st.markdown("**Endereço (Rua e Número)**")
-            end = st.text_input("Endereço", key="ini_end", label_visibility="collapsed")
-            st.markdown("**Bairro**")
-            bairro = st.text_input("Bairro", key="ini_bai", label_visibility="collapsed")
-            st.markdown("**CEP**")
-            cep = st.text_input("CEP", key="ini_cep", label_visibility="collapsed")
-            st.markdown("**CNAE Fiscal**")
-            cnae = st.text_input("CNAE", value="4771-7/01", key="ini_cnae", label_visibility="collapsed")
+        # --- BOTÃO PRINCIPAL DE AVANÇO COM INTELIGÊNCIA ARTIFICIAL DE CADASTRO ---
+    if st.button("Avançar para o Painel de Ações", type="primary", use_container_width=True):
+        if not web or fiscal_selecionado == "Selecione o fiscal..." or len(cnpj_limpo) != 14:
+            st.error("❌ Preencha todos os campos obrigatórios corretamente. O CNPJ precisa ter exatamente 14 dígitos.")
+        else:
+            # Resgata os dados completos do Fiscal selecionado com base no apelido
+            info_fiscal = {"apelido": fiscal_selecionado, "nome": fiscal_selecionado, "cargo": "Fiscal", "credencial": "000"}
+            if df_fiscais is not None:
+                linha_f = df_fiscais[df_fiscais["apelido"] == fiscal_selecionado]
+                if not linha_f.empty:
+                    info_fiscal = {
+                        "apelido": str(linha_f.iloc[0]["apelido"]),
+                        "nome": str(linha_f.iloc[0]["nome"]),
+                        "cargo": str(linha_f.iloc[0]["cargo"]),
+                        "credencial": str(linha_f.iloc[0]["credencial"])
+                    }
+            st.session_state["fiscal_ativo"] = info_fiscal
             
-        if st.button("Avançar para Opções", type="primary", key="btn_ini_avancar"):
-            if cnpj and web and rz:
-                st.session_state["historico_pre_preenchido"] = {"RDC44_3": "C"} # Estabelecimento novo começa limpo
-                st.session_state["dados_processo"] = {"cnpj": cnpj, "web": web}
+            # --- VERIFICAÇÃO SE O CNPJ JÁ EXISTE NO SUPABASE ---
+            empresa_localizada = False
+            if conn_nuvem is not None:
+                try:
+                    from sqlalchemy import text
+                    df_emp = conn_nuvem.query(text("SELECT * FROM empresas_db WHERE cnpj = :cnpj LIMIT 1;"), params={"cnpj": cnpj_limpo}, ttl=0)
+                    
+                    if not df_emp.empty:
+                        st.session_state["empresa_encontrada"] = {
+                            "razao_social": df_emp.iloc[0]["razao_social"],
+                            "endereco": df_emp.iloc[0]["endereco"],
+                            "bairro": df_emp.iloc[0]["bairro"],
+                            "cep": df_emp.iloc[0]["cep"],
+                            "cnae": df_emp.iloc[0]["cnae"],
+                            "atividade": df_emp.iloc[0]["atividade"]
+                        }
+                        empresa_localizada = True
+                except Exception as e:
+                    st.error(f"Erro ao consultar base de dados: {e}")
+            
+            # --- AUTO-CADASTRO: SE NÃO EXISTIR, CONSULTA A BRASILAPI NA HORA ---
+            if not empresa_localizada:
+                with st.spinner("🕵️ CNPJ inédito! Consultando base nacional da Receita Federal..."):
+                    try:
+                        url_api = f"https://brasilapi.com.br{cnpj_limpo}"
+                        resposta = requests.get(url_api, timeout=10)
+                        
+                        if resposta.status_code == 200:
+                            dados = resposta.json()
+                            rz_social = dados.get("razao_social") or dados.get("nome_fantasia") or "Estabelecimento Novo"
+                            logr = dados.get("logradouro") or ""
+                            num = dados.get("numero") or ""
+                            compl = dados.get("complemento") or ""
+                            end_completo = f"{logr}, Nº {num}" + (f" - {compl}" if compl and compl != "NONE" else "")
+                            bairro_api = dados.get("bairro") or "Não Informado"
+                            cep_api = dados.get("cep") or "Não Informado"
+                            cnae_api = str(dados.get("cnae_fiscal") or "4771-7/01")
+                            ativ_api = dados.get("cnae_fiscal_descricao") or "Comércio Varejista Farmacêutico"
+                            
+                            # Salva na memória do aplicativo
+                            st.session_state["empresa_encontrada"] = {
+                                "razao_social": rz_social, "endereco": end_completo, "bairro": bairro_api,
+                                "cep": cep_api, "cnae": cnae_api, "atividade": ativ_api
+                            }
+                            
+                            # Grava automaticamente na tabela empresas_db do Supabase
+                            if conn_nuvem is not None:
+                                with conn_nuvem.session as session:
+                                    session.execute(text("""
+                                        INSERT INTO empresas_db (cnpj, razao_social, endereco, bairro, cep, cnae, atividade)
+                                        VALUES (:cnpj, :razao_social, :endereco, :bairro, :cep, :cnae, :atividade);
+                                    """), {"cnpj": cnpj_limpo, "razao_social": rz_social, "endereco": end_completo, "bairro": bairro_api, "cep": cep_api, "cnae": cnae_api, "atividade": ativ_api})
+                                    session.commit()
+                                st.toast(f"🆕 {rz_social} cadastrada na base com sucesso!", icon="🏢")
+                                empresa_localizada = True
+                            else:
+                                st.error(f"❌ CNPJ não encontrado na Receita Federal (Erro API: {resposta.status_code}).")
+
+                    except Exception as e_api:
+                        st.error(f"⚠️ Falha de comunicação com a base cadastral: {e_api}")
+            
+            # Se a empresa foi achada ou cadastrada com sucesso, carrega o histórico e avança!
+            if empresa_localizada:
+                carregar_historico_cnpj(cnpj_limpo)
+                st.session_state["dados_processo"] = {"cnpj": cnpj_limpo, "web": web}
                 st.session_state["tela"] = "menu_opcoes"
                 st.rerun()
-            else:
-                st.error("❌ Preencha os campos obrigatórios: Razão Social, CNPJ e Número da WEB.")
-
 
 # ==============================================================================
 # TELA 2: MENU DE OPÇÕES (IS, AD, ADEQUAÇÕES)
