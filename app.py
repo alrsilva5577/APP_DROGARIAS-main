@@ -24,11 +24,10 @@ df_excel = carregar_dados_excel()
 conn_nuvem = None
 try:
     # O Streamlit se conecta nativamente usando a chave [connections.sql] do secrets
-    conn_nuvem = st.connection("sql")
+    conn_nuvem = st.connection("postgresql", type="sql")
 except Exception as e_conexao:
     st.sidebar.error(f"⚠️ Falha na conexão com o banco PostgreSQL: {e_conexao}")
 
-# --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE SE NÃO EXISTIR ---
 # --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE SE NÃO EXISTIR ---
 if conn_nuvem is not None:
     try:
