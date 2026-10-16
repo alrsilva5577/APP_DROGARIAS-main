@@ -6,3 +6,4 @@ psycopg2-binary
 st-theme
 sqlalchemy
 requests
+psycopg[binary]
