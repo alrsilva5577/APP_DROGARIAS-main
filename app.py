@@ -1334,75 +1334,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
 
 
 
-    with tab_contato:
-        st.subheader("Informações de Contato e Equipe")
-        st.markdown("#### Acompanhantes da Inspeção")
-        
-        for indice, p in enumerate(st.session_state["lista_pessoas"]):
-            st.markdown(f"**Pessoa {indice + 1}**")
-            col1, col2, col3, col4 = st.columns(4)
-            
-            with col1:
-                st.markdown("**Nome**")
-                st.session_state["lista_pessoas"][indice]["nome"] = st.text_input("Nome", value=p["nome"], key=f"nome_{indice}", label_visibility="collapsed")
-            with col2:
-                st.markdown("**CPF**")
-                st.session_state["lista_pessoas"][indice]["cpf"] = st.text_input("CPF", value=p["cpf"], key=f"cpf_{indice}", label_visibility="collapsed")
-            with col3:
-                st.markdown("**Cargo**")
-                st.session_state["lista_pessoas"][indice]["cargo"] = st.text_input("Cargo", value=p["cargo"], key=f"cargo_{indice}", label_visibility="collapsed")
-            with col4:
-                st.markdown("**E-mail**")
-                st.session_state["lista_pessoas"][indice]["email"] = st.text_input("E-mail", value=p["email"], key=f"email_{indice}", label_visibility="collapsed")
-                
-        if st.button("➕ Adicionar Pessoa"):
-            st.session_state["lista_pessoas"].append({"nome": "", "cpf": "", "cargo": "", "email": ""})
-            st.rerun()
-            
-        st.divider()
-        st.markdown("#### Informações")
-        st.markdown("**Número de colaboradores:**")
-        # Busca o dado que veio do banco de dados, se não achar nada inicia com 0
-        num_padrao = st.session_state.get("num_colaboradores_historico", 0)
-
-        num_colaboradores = st.number_input(
-            "Número de colaboradores:", 
-            min_value=0, step=1, 
-            value=num_padrao # Resgata o histórico do Supabase automaticamente!
-        )
-        st.divider()
-        col_rt, col_botao = st.columns([3, 1])
-        
-        with col_rt:
-            st.markdown("**Farmacêutico presente no ato da inspeção?**")
-            
-            # --- LÓGICA DE PRÉ-PREENCHIMENTO INTELIGENTE ---
-            # Busca o status gravado no banco. Se não achar nada (empresa nova), o padrão é "Não avaliado"
-            status_anterior_rt = st.session_state["historico_pre_preenchido"].get("RDC44_3", "Não avaliado")
-            
-            # Mapeia qual botão de rádio deve iniciar aceso
-            mapeamento_indices = {"Não avaliado": 0, "C": 1, "NC": 2, "NA": 3}
-            indice_padrao = mapeamento_indices.get(status_anterior_rt, 0)
-            
-            status_rt = st.radio(
-                "RT Status", ["Não avaliado", "C", "NC", "NA"],
-                index=indice_padrao,
-                horizontal=True, 
-                label_visibility="collapsed"
-            )
-            
-        with col_botao:
-            st.write("")
-            if st.button("➕ Observação"):
-                st.session_state["mostrar_observacao_rt"] = True
-                st.rerun()
-                
-        obs_rt = ""
-        if st.session_state["mostrar_observacao_rt"]:
-            st.markdown("**Digite as observações sobre a situação do farmacêutico:**")
-            obs_rt = st.text_area("Obs RT Texto", placeholder="Ex: Farmacêutico ausente...", label_visibility="collapsed")
-            
-        st.divider()
+   
         st.markdown("### 💾 Finalizar Relatório")
         
         # 1. ETAPA DE PROCESSAMENTO (Grava no banco e prepara o Word na memória)
