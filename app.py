@@ -590,12 +590,12 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
     st.divider()
     
     # --- MAPEAMENTOS GERAIS DE STATUS PARA PREENCHIMENTO AUTOMÁTICO ---
-#   mapeamento_status = {"Não avaliado": 0, "C": 1, "NC": 2, "NA": 3}
-#  opcoes_status = ["Não avaliado", "C", "NC", "NA"]
-#
- #   mapeamento_sim_nao = {"Não avaliado": 0, "Sim": 1, "Não": 2}
- #   opcoes_sim_nao = ["Não avaliado", "Sim", "Não"]
- #   
+    mapeamento_status = {"Não avaliado": 0, "C": 1, "NC": 2, "NA": 3}
+    opcoes_status = ["Não avaliado", "C", "NC", "NA"]
+
+    mapeamento_sim_nao = {"Não avaliado": 0, "Sim": 1, "Não": 2}
+    opcoes_sim_nao = ["Não avaliado", "Sim", "Não"]
+    
     # Atalho para o dicionário do histórico mestre carregado na Tela 1
     historico = st.session_state.get("historico_pre_preenchido", {})
     
