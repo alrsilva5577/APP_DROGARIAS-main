@@ -599,11 +599,16 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
     # Atalho para o dicionário do histórico mestre carregado na Tela 1
     historico = st.session_state.get("historico_pre_preenchido", {})
     
-    # Dicionário temporário que vai coletar os dados modificados nesta tela
+    # Cria uma chave única baseada no número WEB e no horário atual do sistema
+    timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
+    id_inspecao_unico = f"{n_web or 'INSP'}_{timestamp_chave}"
+
+    # Dicionário mestre de coleta (agora contendo o id_inspecao obrigatório!)
     dados_inspecao_atual = {
+        "id_inspecao": id_inspecao_unico, # ⬅️ A correção cirúrgica está aqui!
         "cnpj": cnpj_estabelecimento,
         "web": n_web,
-        "data_procedimento": datetime.strptime(data_atual, "%d/%m/%Y").date()
+        "data_procedimento": datetime.now().date()
     }
     
     # --- CRIAÇÃO DAS TABS DO APLICATIVO ---
