@@ -1294,6 +1294,115 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
 
         st.divider()
 
+        # --------------------------------------------------------------------------
+        # 2.9 PROGRAMA DE GERENCIAMENTO DE RISCOS (PGR)
+        # --------------------------------------------------------------------------
+        st.markdown("### 🛠️ Programa de Gerenciamento de Riscos (PGR)")
+        st.markdown("**O estabelecimento possui o PGR implantado e em vigência?**")
+        
+        # 1. Recupera a avaliação sanitária anterior do PGR (Padrão: "Não avaliado")
+        val_possui_pgr = historico.get("possui_pgr", "Não avaliado")
+        idx_possui_pgr = mapeamento_status.get(val_possui_pgr, 0)
+        
+        dados_inspecao_atual["possui_pgr"] = st.radio(
+            "Avaliação PGR:",
+            options=opcoes_status,
+            index=idx_possui_pgr,
+            horizontal=True,
+            label_visibility="collapsed",
+            key="rad_possui_pgr"
+        )
+        
+        # Lógica Dinâmica: Só exibe os campos documentais se for avaliado como Conforme (C) ou Não Conforme (NC)
+        if dados_inspecao_atual["possui_pgr"] in ["C", "NC"]:
+            st.markdown("#### 📄 Dados do Documento do PGR")
+            
+            # Linha 1: Responsável Elaborador
+            val_resp_pgr = historico.get("responsavel_pgr", "")
+            dados_inspecao_atual["responsavel_pgr"] = st.text_input(
+                "Nome do Responsável Técnico pela Elaboração do PGR:", 
+                value=str(val_resp_pgr) if val_resp_pgr is not None and str(val_resp_pgr) != "None" else "", 
+                placeholder="Ex: Engenheiro/ Técnico de Segurança do Trabalho / nº MTE",
+                key="ti_responsavel_pgr"
+            )
+            
+            # Linha 2: Datas Importantes (Emissão e Validade) organizadas em 2 colunas
+            col_pgr_emi, col_pgr_val = st.columns(2)
+            
+            with col_pgr_emi:
+                val_emi_pgr = historico.get("emissao_pgr", None)
+                # Converte o retorno do banco para o tipo date de forma segura
+                emi_padrao_pgr = pd.to_datetime(val_emi_pgr).date() if val_emi_pgr and not pd.isna(val_emi_pgr) else None
+                
+                dados_inspecao_atual["emissao_pgr"] = st.date_input(
+                    "Data de Emissão / Início da Vigência:", 
+                    value=emi_padrao_pgr, 
+                    key="di_emissao_pgr"
+                )
+                
+            with col_pgr_val:
+                val_vld_pgr = historico.get("validade_pgr", None)
+                vld_padrao_pgr = pd.to_datetime(val_vld_pgr).date() if val_vld_pgr and not pd.isna(val_vld_pgr) else None
+                
+                dados_inspecao_atual["validade_pgr"] = st.date_input(
+                    "Data de Validade:", 
+                    value=vld_padrao_pgr, 
+                    key="di_validade_pgr"
+                )
+        else:
+            # Limpa as variáveis no dicionário caso o item não exija detalhamento documental
+            dados_inspecao_atual["responsavel_pgr"] = None
+            dados_inspecao_atual["emissao_pgr"] = None
+            dados_inspecao_atual["validade_pgr"] = None
+
+        st.divider()
+
+        # --------------------------------------------------------------------------
+        # 2.10 ATESTADO DE SAÚDE OCUPACIONAL (ASO)
+        # --------------------------------------------------------------------------
+        st.markdown("### 🪪 Atestado de Saúde Ocupacional (ASO)")
+        st.markdown("**O estabelecimento apresenta os ASOs atualizados?**")
+        
+        # 1. Recupera a avaliação sanitária anterior do ASO (Padrão: "Não avaliado")
+        val_possui_aso = historico.get("possui_aso", "Não avaliado")
+        idx_possui_aso = mapeamento_status.get(val_possui_aso, 0)
+        
+        dados_inspecao_atual["possui_aso"] = st.radio(
+            "Avaliação ASO:",
+            options=opcoes_status,
+            index=idx_possui_aso,
+            horizontal=True,
+            label_visibility="collapsed",
+            key="rad_possui_aso"
+        )
+        
+        # Lógica Dinâmica: Só exibe os campos documentais se for avaliado como Conforme (C) ou Não Conforme (NC)
+        if dados_inspecao_atual["possui_aso"] in ["C", "NC"]:
+            st.markdown("#### 📄 Dados de Controle dos ASOs")
+            col_aso_emp, col_aso_num = st.columns(2)
+            
+            with col_aso_emp:
+                val_emp_aso = historico.get("empresa_aso", "")
+                dados_inspecao_atual["empresa_aso"] = st.text_input(
+                    "Clínica / Empresa responsável pela emissão dos ASOs:", 
+                    value=str(val_emp_aso) if val_emp_aso is not None and str(val_emp_aso) != "None" else "", 
+                    key="ti_empresa_aso"
+                )
+                
+            with col_aso_num:
+                val_num_aso = historico.get("numero_aso", "")
+                dados_inspecao_atual["numero_aso"] = st.text_input(
+                    "Quantidade de ASOs verificados / Observações de controle:", 
+                    value=str(val_num_aso) if val_num_aso is not None and str(val_num_aso) != "None" else "", 
+                    key="ti_numero_aso"
+                )
+        else:
+            # Limpa as variáveis no dicionário caso o item não exija detalhamento documental
+            dados_inspecao_atual["empresa_aso"] = None
+            dados_inspecao_atual["numero_aso"] = None
+
+        st.divider()
+
     # ==============================================================================
     # TAB 3: CONTROLES T E U
     # ==============================================================================
@@ -1324,7 +1433,46 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
     with tab_funcionarios:
         st.write("Aguardando inserção dos dados de EPIs, uniformes e capacitações...")
 
+    # ==============================================================================
+    # 5. FINALIZAR RELATÓRIO E PERSISTIR NO SUPABASE
+    # ==============================================================================
+    st.markdown("### 💾 Encerramento da Inspeção")
     
+    # Este botão fica visível abaixo de todas as abas para o fiscal clicar ao fim do trabalho
+    if st.button("⚙️ Gravar Dados da Inspeção na Nuvem", type="primary", use_container_width=True, key="btn_salvar_supabase_mestre"):
+        if conn_nuvem is None:
+            st.error("❌ Não foi possível salvar: O aplicativo está operando em Modo Offline (Sem conexão com o banco).")
+        elif not cnpj_estabelecimento:
+            st.error("❌ Erro grave: O CNPJ do estabelecimento não foi identificado.")
+        else:
+            with st.spinner("Sincronizando dados e salvando histórico no Supabase..."):
+                try:
+                    # Geramos uma lista limpa com os nomes dos campos que foram preenchidos até agora
+                    colunas_presentes = list(dados_inspecao_atual.keys())
+                    
+                    # Montamos as tags de placeholders dinamicamente (Ex: :cnpj, :web, :possui_afe)
+                    placeholders = [f":{col}" for col in colunas_presentes]
+                    
+                    # Constrói a Query SQL de INSERT de forma automatizada baseada no que existe no dicionário
+                    query_insert_dinamica = f"""
+                        INSERT INTO inspecoes_db ({", ".join(colunas_presentes)})
+                        VALUES ({", ".join(placeholders)});
+                    """
+                    
+                    # Executa a gravação na sessão ativa do banco de dados
+                    with conn_nuvem.session as session:
+                        session.execute(text(query_insert_dinamica), dados_inspecao_atual)
+                        session.commit()
+                    
+                    st.success("🟢 Sucesso! Os dados foram gravados de forma permanente na tabela 'inspecoes_db'.")
+                    st.toast("Inspeção salva com sucesso!", icon="💾")
+                    
+                    # Força a atualização do histórico global da sessão com os novos dados que acabamos de salvar
+                    st.session_state["historico_pre_preenchido"] = dados_inspecao_atual.copy()
+                    
+                except Exception as e_gravacao:
+                    st.error(f"❌ Falha técnica ao tentar gravar no Supabase: {e_gravacao}")
+
 
 
 
@@ -1335,119 +1483,4 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
 
 
    
-        st.markdown("### 💾 Finalizar Relatório")
         
-        # 1. ETAPA DE PROCESSAMENTO (Grava no banco e prepara o Word na memória)
-        if st.button("⚙️ Processar Relatório e Salvar na Nuvem", type="primary", key="btn_processar_geral"):
-            if df_excel is None:
-                st.error("Não é possível gerar o relatório sem carregar a planilha 'INFRACOES_DB.xlsx'.")
-            else:
-                with st.spinner("Sincronizando dados com o Google Sheets..."):
-                    # Montagem do Word
-                    doc = Document()
-                    cabecalho = f"Estabelecimento inspecionado em {data_atual} em atendimento a solicitação web nº {n_web} que trata da emissão de Licença Sanitária."
-                    doc.add_paragraph(cabecalho)
-                    
-                    texto_contatos = "A inspeção foi acompanhada por: "
-                    lista_contatos_formatados = []
-                    for p in st.session_state["lista_pessoas"]:
-                        if p["nome"].strip() != "":
-                            info_pess = f"{p['nome']}, CPF: {p['cpf']}, cargo: {p['cargo']}, email: {p['email']}"
-                            lista_contatos_formatados.append(info_pess)
-                    if lista_contatos_formatados:
-                        texto_contatos += "; ".join(lista_contatos_formatados) + "."
-                        doc.add_paragraph(texto_contatos)
-                        
-                    frase_rt_final = ""
-                    linha_rt = df_excel[df_excel["id_lei_artigo"] == "RDC44_3"]
-                    lista_salvamento_banco = []
-                    
-                    if not linha_rt.empty:
-                        if status_rt == "C":
-                            frase_rt_final = str(linha_rt["frase_conforme"].values)
-                            lista_salvamento_banco.append("RDC44_3:C")
-                        elif status_rt == "NC":
-                            frase_rt_final = str(linha_rt["frase_nao_conforme"].values)
-                            lista_salvamento_banco.append("RDC44_3:NC")
-                        elif status_rt == "NA":
-                            lista_salvamento_banco.append("RDC44_3:NA")
-                        elif status_rt == "Não avaliado":
-                            lista_salvamento_banco.append("RDC44_3:Não avaliado")
-                            
-                    if obs_rt.strip() != "":
-                        frase_rt_final += f" {obs_rt}" if frase_rt_final else obs_rt
-                    if frase_rt_final:
-                        doc.add_paragraph(frase_rt_final)
-                        
-                    doc.add_paragraph("")
-                    doc.add_heading("1- Informações gerais:", level=1)
-                    info_gerais = f"Estabelecimento que desenvolve atividade enquadrada no Agrupamento 28 – Comércio Varejista de Medicamentos – CNAE Fiscal 4771-7/01 – Comércio Varejista de Produtos Farmacêuticos sem Manipulação de Fórmulas.\nNúmero de colaboradores: {num_colaboradores}."
-                    doc.add_paragraph(info_gerais)
-                    
-                    # Salva o arquivo Word na memória da sessão para não perder no reload
-                    buffer = io.BytesIO()
-                    doc.save(buffer)
-                    buffer.seek(0)
-                    st.session_state["buffer_word_pronto"] = buffer.getvalue()
-                    
-                    # --- GRAVAÇÃO AUTOMÁTICA NO BANCO SQL EM NUVEM (POSTGRESQL) ---
-                                        # --- GRAVAÇÃO AUTOMÁTICA EM NUVEM (POSTGRESQL ATUALIZADA) ---
-                    if conn_nuvem is not None:
-                        timestamp_chave = datetime.now().strftime("%Y%m%d_%H%M%S")
-                        chave_primaria_inspecao = f"{n_web}IS{timestamp_chave}"
-                        texto_status_banco = ",".join(lista_salvamento_banco)
-                        
-                        # Transforma a lista dinâmica de pessoas em uma única linha de texto limpa para o banco
-                        lista_salvamento_pessoas = []
-                        for p in st.session_state["lista_pessoas"]:
-                            if p["nome"].strip() != "":
-                                # Guarda no formato: Nome/CPF/Cargo/Email
-                                info_compacta = f"{p['nome'].strip()}/{p['cpf'].strip()}/{p['cargo'].strip()}/{p['email'].strip()}"
-                                lista_salvamento_pessoas.append(info_compacta)
-                        texto_pessoas_banco = " | ".join(lista_salvamento_pessoas)
-                        
-                        try:
-                            with conn_nuvem.session as session:
-                                # Adicionamos os novos campos e parâmetros no comando INSERT do SQL
-                                session.execute(
-                                    text("""
-                                    INSERT INTO inspecoes_db (id_inspecao, id_renovacao, cnpj_estabelecimento, tipo_acao, data_procedimento, status_inspecao_itens, numero_colaboradores, acompanhantes_inspecao)
-                                    VALUES (:id_inspecao, :id_renovacao, :cnpj_estabelecimento, :tipo_acao, :data_procedimento, :status_inspecao_itens, :numero_colaboradores, :acompanhantes_inspecao);
-                                    """),
-                                    {
-                                        "id_inspecao": chave_primaria_inspecao,
-                                        "id_renovacao": n_web,
-                                        "cnpj_estabelecimento": cnpj_estabelecimento,
-                                        "tipo_acao": "IS",
-                                        "data_procedimento": data_atual,
-                                        "status_inspecao_itens": texto_status_banco,
-                                        "numero_colaboradores": int(num_colaboradores),
-                                        "acompanhantes_inspecao": texto_pessoas_banco
-                                    }
-                                )
-                                session.commit()
-                            st.session_state["gravou_nuvem_sucesso"] = True
-                        except Exception as e:
-                            st.session_state["erro_nuvem_mensagem"] = str(e)
-                            st.session_state["gravou_nuvem_sucesso"] = False
-                    st.rerun()
-
-
-        # 2. ETAPA DE FEEDBACK E DOWNLOAD (Fora do botão anterior para evitar resets)
-        if "gravou_nuvem_sucesso" in st.session_state:
-            if st.session_state["gravou_nuvem_sucesso"]:
-                st.success("✅ Dados salvos com sucesso na planilha do Google Sheets!")
-            else:
-                erro_txt = st.session_state.get("erro_nuvem_mensagem", "Erro desconhecido.")
-                st.error(f"❌ O Word foi gerado, mas houve um erro ao salvar no Google Sheets: {erro_txt}")
-                st.info("Verifique se as credenciais no Secrets da nuvem contêm a linha de 'scopes' corretamente.")
-
-            # Exibe o botão de download estável se o arquivo estiver pronto na memória
-            if "buffer_word_pronto" in st.session_state:
-                st.download_button(
-                    label="💾 Clique aqui para baixar o arquivo .docx", 
-                    data=st.session_state["buffer_word_pronto"], 
-                    file_name=f"Relatorio_Inspecao_{n_web}.docx", 
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    key="btn_download_estavel"
-                )
