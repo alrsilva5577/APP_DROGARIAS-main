@@ -634,7 +634,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
     # TAB 1: CONTATO (Preenchimento das Pessoas Contatadas)
     # ==============================================================================
     with tab_contato:
-        st.markdown("### 👥 Pessoas Contatadas / Acompanhantes da Inspeção")
+        st.markdown("### 👥 Acompanhantes da Inspeção")
         
         # --- MOTOR DE RECONSTRUÇÃO DO HISTÓRICO ---
         # Se o fiscal mudou de empresa ou iniciou o formulário agora, preparamos a lista de pessoas
@@ -643,10 +643,14 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
             texto_banco_contatos = str(historico.get("acompanhantes_inspecao", ""))
             
             # Se existirem dados anteriores gravados na última inspeção, reconstrói a lista
-            if texto_banco_contatos.strip() != "" and texto_banco_contatos != "None" and " | " in texto_banco_contatos:
+            if texto_banco_contatos.strip() != "" and texto_banco_contatos != "None" and "/" in texto_banco_contatos:
                 lista_reconstruida = []
-                # Quebra os registros de cada pessoa separados pela barra vertical com espaços
-                pessoas_registradas = texto_banco_contatos.split(" | ")
+                # Se houver mais de uma pessoa, quebra no " | ", senão trata como lista de um item só
+                if " | " in texto_banco_contatos:
+                    pessoas_registradas = texto_banco_contatos.split(" | ")
+                else:
+                    pessoas_registradas = [texto_banco_contatos]
+                    
                 for registro in pessoas_registradas:
                     if "/" in registro:
                         partes = registro.split("/")
