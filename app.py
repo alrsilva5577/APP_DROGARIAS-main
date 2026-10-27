@@ -5,6 +5,7 @@ import pandas as pd
 import requests
 import io
 from sqlalchemy import text
+import json
 
 # 1. Configurações iniciais da página
 st.set_page_config(page_title="Módulo de Inspeção", layout="wide")
@@ -312,13 +313,26 @@ def carregar_historico_cnpj(cnpj_limpo):
             
             if resultado:
                 # Salva todas as colunas do banco diretamente no dicionário
-                st.session_state["historico_pre_preenchido"] = dict(resultado)
+                dados_linha = dict(resultado)
+                
+                # Converte a string JSON do banco de volta para dicionário Python
+                import json
+                campo_json = dados_linha.get("locais_controle_geladeiras_json")
+                if isinstance(campo_json, str) and campo_json.strip():
+                    try:
+                        dados_linha["locais_controle_geladeiras_json"] = json.loads(campo_json)
+                    except Exception:
+                        dados_linha["locais_controle_geladeiras_json"] = {}
+                # ─────────────────────────────────────────────────────────────────────────────
+                
+                st.session_state["historico_pre_preenchido"] = dados_linha
                 return True
                 
     except Exception as e:
         print(f"Erro ao carregar histórico completo do Supabase: {e}")
         
     return False
+
 
 # ==============================================================================
 # TELA 1: FLUXO INICIAL
@@ -1414,7 +1428,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         # ==============================================================================
         # PARTE A: LOOP - CONTROLE DE TEMPERATURA E UMIDADE (T E U)
         # ==============================================================================
-        st.markdown("### 📍 Controles de Temperatura e Umidade (Termohigrômetros)")
+        st.markdown("### 📍 Áreas de Temperatura e Umidade Controladas")
         
         lista_tu_atualizada = []
         
@@ -1493,7 +1507,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         # Botoes de Controle da Lista T e U
         col_btn_tu_add, col_btn_tu_rem, _ = st.columns([1.5, 1.5, 5])
         with col_btn_tu_add:
-            if st.button("➕ Adicionar Controle T e U", use_container_width=True, key="btn_add_tu"):
+            if st.button("➕ Adicionar Área/ Equipamento", use_container_width=True, key="btn_add_tu"):
                 # Salva o estado atual das caixas antes de injetar uma nova linha limpa
                 lista_temp = []
                 for i in range(len(st.session_state["lista_tu_formulario"])):
@@ -1516,7 +1530,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         # ==============================================================================
         # PARTE B: LOOP - CONTROLE APENAS DE TEMPERATURA (T)
         # ==============================================================================
-        st.markdown("### 🌡️ Controles de Temperatura (Termômetros Simples)")
+        st.markdown("### 🌡️ Áreas de Temperatura Controlada")
         
         lista_t_atualizada = []
         
@@ -1599,7 +1613,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         # Botoes de Controle da Lista T 
         col_btn_t_add, col_btn_t_rem, _ = st.columns([1.5, 1.5, 5])
         with col_btn_t_add:
-            if st.button("➕ Adicionar Controle Temperatura", use_container_width=True, key="btn_add_t"):
+            if st.button("➕ Adicionar Área/ Equipamento", use_container_width=True, key="btn_add_t"):
                 lista_temp_t = []
                 for i in range(len(st.session_state["lista_t_formulario"])):
                     lista_temp_t.append({
@@ -1653,11 +1667,10 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         st.write("Aguardando inserção dos dados de EPIs, uniformes e capacitações...")
 
     # ==============================================================================
-    # 5. FINALIZAR RELATÓRIO E PERSISTIR NO SUPABASE
+    # 5. FINALIZAR RELATÓRIO E PERSISTIR NO SUPABASE (VERSÃO DEFINITIVA COM JSONB)
     # ==============================================================================
     st.markdown("### 💾 Encerramento da Inspeção")
     
-    # Este botão fica visível abaixo de todas as abas para o fiscal clicar ao fim do trabalho
     if st.button("⚙️ Gravar Dados da Inspeção na Nuvem", type="primary", use_container_width=True, key="btn_salvar_supabase_mestre"):
         if conn_nuvem is None:
             st.error("❌ Não foi possível salvar: O aplicativo está operando em Modo Offline (Sem conexão com o banco).")
@@ -1666,19 +1679,45 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         else:
             with st.spinner("Sincronizando dados e salvando histórico no Supabase..."):
                 try:
-                    # Geramos uma lista limpa com os nomes dos campos que foram preenchidos até agora
-                    colunas_presentes = list(dados_inspecao_atual.keys())
+                    import json
+
+                    # 🚨 1. CAPTURA FORÇADA DE SEGURANÇA: CONTATOS (TAB 1) 🚨
+                    lista_atualizada_salvamento = []
+                    if "lista_pessoas_formulario" in st.session_state:
+                        for idx in range(len(st.session_state["lista_pessoas_formulario"])):
+                            nome_p = st.session_state.get(f"p_nome_{idx}", "").strip()
+                            cpf_p = st.session_state.get(f"p_cpf_{idx}", "").strip()
+                            cargo_p = st.session_state.get(f"p_cargo_{idx}", "").strip()
+                            email_p = st.session_state.get(f"p_email_{idx}", "").strip()
+                            if nome_p:
+                                lista_atualizada_salvamento.append(f"{nome_p}/{cpf_p}/{cargo_p}/{email_p}")
                     
-                    # Montamos as tags de placeholders dinamicamente (Ex: :cnpj, :web, :possui_afe)
+                    if lista_atualizada_salvamento:
+                        dados_inspecao_atual["acompanhantes_inspecao"] = " | ".join(lista_atualizada_salvamento)
+
+                    # 🚨 2. CAPTURA FORÇADA E CONVERSÃO DE SEGURANÇA: TERMÔMETROS (TAB 3) 🚨
+                    # Se o fiscal clicar em salvar fora da Tab 3, garante que os dados da memória não sumam
+                    if "locais_controle_geladeiras_json" not in dados_inspecao_atual:
+                        dados_inspecao_atual["locais_controle_geladeiras_json"] = {
+                            "lista_tu": lista_tu_atualizada if 'lista_tu_atualizada' in locals() else st.session_state.get("lista_tu_formulario", []),
+                            "lista_t": lista_t_atualizada if 'lista_t_atualizada' in locals() else st.session_state.get("lista_t_formulario", [])
+                        }
+                    
+                    # Converte o dicionário em string JSON formatada para satisfazer o driver do PostgreSQL/Supabase
+                    if isinstance(dados_inspecao_atual["locais_controle_geladeiras_json"], dict):
+                        dados_inspecao_atual["locais_controle_geladeiras_json"] = json.dumps(
+                            dados_inspecao_atual["locais_controle_geladeiras_json"]
+                        )
+
+                    # 🚨 3. GERADOR DINÂMICO DE SQL E ENVIO 🚨
+                    colunas_presentes = list(dados_inspecao_atual.keys())
                     placeholders = [f":{col}" for col in colunas_presentes]
                     
-                    # Constrói a Query SQL de INSERT de forma automatizada baseada no que existe no dicionário
                     query_insert_dinamica = f"""
                         INSERT INTO inspecoes_db ({", ".join(colunas_presentes)})
                         VALUES ({", ".join(placeholders)});
                     """
                     
-                    # Executa a gravação na sessão ativa do banco de dados
                     with conn_nuvem.session as session:
                         session.execute(text(query_insert_dinamica), dados_inspecao_atual)
                         session.commit()
@@ -1686,7 +1725,6 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     st.success("🟢 Sucesso! Os dados foram gravados de forma permanente na tabela 'inspecoes_db'.")
                     st.toast("Inspeção salva com sucesso!", icon="💾")
                     
-                    # Força a atualização do histórico global da sessão com os novos dados que acabamos de salvar
                     st.session_state["historico_pre_preenchido"] = dados_inspecao_atual.copy()
                     
                 except Exception as e_gravacao:
