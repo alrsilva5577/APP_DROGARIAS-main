@@ -266,34 +266,6 @@ if conn_nuvem is not None:
     except Exception as e:
         st.sidebar.error(f"Erro crítico ao estruturar a tabela no Supabase: {e}")
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
 if "tela" not in st.session_state:
     st.session_state["tela"] = "fluxo_inicial"
@@ -358,7 +330,7 @@ if st.session_state["tela"] == "fluxo_inicial":
     
     with col1:
         st.markdown("**Número da Solicitação WEB**")
-        web = st.text_input("WEB Entrada", key="init_web", label_visibility="collapsed", placeholder="Ex: 2026-X812")
+        web = st.text_input("WEB Entrada", key="init_web", label_visibility="collapsed")
         
         st.markdown("**Fiscal Responsável**")
         # Puxa dinamicamente a lista de apelidos do arquivo Excel FISCAIS_DB
@@ -494,10 +466,10 @@ elif st.session_state["tela"] == "menu_opcoes":
     
     with col_menu1:
         st.markdown("### 📋 Atos de Fiscalização")
-        if st.button("🔍 Adicionar Inspeção Sanitária (IS)", use_container_width=True, type="primary"):
+        if st.button("🔍 Adicionar Inspeção Sanitária", use_container_width=True, type="primary"):
             st.session_state["tela"] = "inspecao_sanitaria"
             st.rerun()
-        if st.button("📂 Adicionar Avaliação Documental (AD)", use_container_width=True, disabled=True):
+        if st.button("📂 Adicionar Avaliação Documental", use_container_width=True, disabled=True):
             pass
             
     with col_menu2:
@@ -1415,8 +1387,246 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
     # ==============================================================================
     # TAB 3: CONTROLES T E U
     # ==============================================================================
+        # ==============================================================================
+    # TAB 3: CONTROLES T E U (ÁREAS TÉRMICAS E GELADEIRAS)
+    # ==============================================================================
     with tab_controles:
-        st.write("Aguardando inserção do loop dinâmico de termo-higrômetros...")
+        st.markdown("## ❄️ Seção: Áreas de Controle Térmico/ Umidade e Geladeiras")
+        
+        # --- RECONSTRUÇÃO DO HISTÓRICO DO SUPABASE ---
+        # Resgata o objeto JSONB salvo na última inspeção
+        historico_json = historico.get("locais_controle_geladeiras_json", {})
+        if not isinstance(historico_json, dict):
+            historico_json = {}
+            
+        historico_lista_tu = historico_json.get("lista_tu", [])
+        historico_lista_t = historico_json.get("lista_t", [])
+
+        # --- INICIALIZAÇÃO SEGURA DOS ESTADOS DE SESSÃO DOS LOOPS ---
+        if "lista_tu_formulario" not in st.session_state or st.session_state.get("ultimo_cnpj_visto_tu") != cnpj_estabelecimento:
+            st.session_state["ultimo_cnpj_visto_tu"] = cnpj_estabelecimento
+            st.session_state["lista_tu_formulario"] = historico_lista_tu if historico_lista_tu else []
+            st.session_state["lista_t_formulario"] = historico_lista_t if historico_lista_t else []
+
+        # Opções estritas de marcação para os seletores de Calibração
+        opcoes_tipo_comprovacao = ["Calibração", "Aquisição recente"]
+
+        # ==============================================================================
+        # PARTE A: LOOP - CONTROLE DE TEMPERATURA E UMIDADE (T E U)
+        # ==============================================================================
+        st.markdown("### 📍 Controles de Temperatura e Umidade (Termohigrômetros)")
+        
+        lista_tu_atualizada = []
+        
+        for idx, item in enumerate(st.session_state["lista_tu_formulario"]):
+            with st.expander(f"📋 Registro T e U nº {idx + 1} - {item.get('local_controle_t_u', 'Novo Local')}", expanded=True):
+                # Linha 1: Identificação e Medições
+                col_tu_nome, col_tu_t, col_tu_u = st.columns([2, 1, 1])
+                with col_tu_nome:
+                    local_tu = st.text_input("Nome do local ou equipamento (Estoque/Geladeira):", value=item.get("local_controle_t_u", ""), key=f"tu_nome_{idx}")
+                with col_tu_t:
+                    t_agora = st.text_input("Temperatura Agora (°C):", value=item.get("t_agora", ""), key=f"tu_t_{idx}")
+                with col_tu_u:
+                    u_agora = st.text_input("Umidade Agora (%):", value=item.get("u_agora", ""), key=f"tu_u_{idx}")
+
+                # Linha 2: Planilha e Adequação de Valores
+                col_tu_plan, col_tu_conf, col_tu_marca = st.columns([1.2, 1.2, 1.5])
+                with col_tu_plan:
+                    v_plan_tu = item.get("planilha_controle_t_u", "Não avaliado")
+                    plan_tu = st.radio("Possui planilha de controle?", opcoes_status, index=mapeamento_status.get(v_plan_tu, 0), key=f"tu_plan_{idx}", horizontal=True)
+                with col_tu_conf:
+                    v_conf_tu = item.get("conformidade_t_u", "Não avaliado")
+                    conf_tu = st.radio("Valores são adequados?", opcoes_status, index=mapeamento_status.get(v_conf_tu, 0), key=f"tu_conf_{idx}", horizontal=True)
+                with col_tu_marca:
+                    marca_tu = st.text_input("Marca/Modelo do Termo-higrômetro:", value=item.get("marca_modelo_termohigrometro", ""), key=f"tu_marca_{idx}")
+
+                # Linha 3: Calibração
+                st.markdown("**Validação Metrológica do Equipamento**")
+                v_cal_tu = item.get("possui_calibracao", "Não avaliado")
+                cal_tu = st.radio("Avaliação da Calibração:", opcoes_status, index=mapeamento_status.get(v_cal_tu, 0), key=f"tu_cal_{idx}", horizontal=True)
+
+                # Dicionários internos de controle de sub-dados
+                dados_cal_tu = {"certificado": "", "empresa": "", "data": None, "validade": None}
+                dados_aq_tu = {"nf": "", "data": None, "fornecedor": ""}
+
+                if cal_tu in ["C", "NC"]:
+                    # Pergunta se é Calibração padrão ou Aquisição recente
+                    v_tipo_tu = item.get("tipo_comprovacao_tu", "Calibração")
+                    idx_tipo_tu = 0 if v_tipo_tu == "Calibração" else 1
+                    tipo_comp_tu = st.radio("Tipo de comprovação:", opcoes_tipo_comprovacao, index=idx_tipo_tu, key=f"tu_tipo_comp_{idx}", horizontal=True)
+
+                    if tipo_comp_tu == "Calibração":
+                        col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+                        with col_c1:
+                            dados_cal_tu["certificado"] = st.text_input("Nº Certificado:", value=item.get("certificado_calibracao", ""), key=f"tu_cert_{idx}")
+                        with col_c2:
+                            dados_cal_tu["empresa"] = st.text_input("Empresa Prestadora:", value=item.get("empresa_calibracao", ""), key=f"tu_emp_cal_{idx}")
+                        with col_c3:
+                            d_c_tu = item.get("data_calibracao", None)
+                            dt_c_tu = pd.to_datetime(d_c_tu).date() if d_c_tu and not pd.isna(d_c_tu) else None
+                            dados_cal_tu["data"] = st.date_input("Data Calibração:", value=dt_c_tu, key=f"tu_dt_cal_{idx}")
+                        with col_c4:
+                            v_c_tu = item.get("validade_calibracao", None)
+                            dt_v_tu = pd.to_datetime(v_c_tu).date() if v_c_tu and not pd.isna(v_c_tu) else None
+                            dados_cal_tu["validade"] = st.date_input("Validade:", value=dt_v_tu, key=f"tu_val_cal_{idx}")
+                    else:
+                        col_a1, col_a2, col_a3 = st.columns([1, 1, 2])
+                        with col_a1:
+                            dados_aq_tu["nf"] = st.text_input("Nº Nota Fiscal:", value=item.get("nota_aquisicao", ""), key=f"tu_nf_{idx}")
+                        with col_a2:
+                            d_a_tu = item.get("data_aquisicao", None)
+                            dt_a_tu = pd.to_datetime(d_a_tu).date() if d_a_tu and not pd.isna(d_a_tu) else None
+                            dados_aq_tu["data"] = st.date_input("Data Aquisição:", value=dt_a_tu, key=f"tu_dt_aq_{idx}")
+                        with col_a3:
+                            dados_aq_tu["fornecedor"] = st.text_input("Fornecedor:", value=item.get("empresa_aquisicao", ""), key=f"tu_forn_{idx}")
+
+                # Compacta as informações capturadas deste índice
+                lista_tu_atualizada.append({
+                    "local_controle_t_u": local_tu, "t_agora": t_agora, "u_agora": u_agora,
+                    "planilha_controle_t_u": plan_tu, "conformidade_t_u": conf_tu, "marca_modelo_termohigrometro": marca_tu,
+                    "possui_calibracao": cal_tu, "tipo_comprovacao_tu": tipo_comp_tu if cal_tu in ["C", "NC"] else "",
+                    "certificado_calibracao": dados_cal_tu["certificado"], "empresa_calibracao": dados_cal_tu["empresa"],
+                    "data_calibracao": str(dados_cal_tu["data"]) if dados_cal_tu["data"] else "", "validade_calibracao": str(dados_cal_tu["validade"]) if dados_cal_tu["validade"] else "",
+                    "nota_aquisicao": dados_aq_tu["nf"], "data_aquisicao": str(dados_aq_tu["data"]) if dados_aq_tu["data"] else "", "empresa_aquisicao": dados_aq_tu["fornecedor"]
+                })
+
+        # Botoes de Controle da Lista T e U
+        col_btn_tu_add, col_btn_tu_rem, _ = st.columns([1.5, 1.5, 5])
+        with col_btn_tu_add:
+            if st.button("➕ Adicionar Controle T e U", use_container_width=True, key="btn_add_tu"):
+                # Salva o estado atual das caixas antes de injetar uma nova linha limpa
+                lista_temp = []
+                for i in range(len(st.session_state["lista_tu_formulario"])):
+                    lista_temp.append({
+                        "local_controle_t_u": st.session_state[f"tu_nome_{i}"], "t_agora": st.session_state[f"tu_t_{i}"], "u_agora": st.session_state[f"tu_u_{i}"],
+                        "planilha_controle_t_u": st.session_state[f"tu_plan_{i}"], "conformidade_t_u": st.session_state[f"tu_conf_{i}"], "marca_modelo_termohigrometro": st.session_state[f"tu_marca_{i}"],
+                        "possui_calibracao": st.session_state[f"tu_cal_{i}"], "tipo_comprovacao_tu": st.session_state.get(f"tu_tipo_comp_{i}", "Calibração")
+                    })
+                lista_temp.append({"local_controle_t_u": "", "t_agora": "", "u_agora": "", "planilha_controle_t_u": "Não avaliado", "conformidade_t_u": "Não avaliado", "marca_modelo_termohigrometro": "", "possui_calibracao": "Não avaliado"})
+                st.session_state["lista_tu_formulario"] = lista_temp
+                st.rerun()
+        with col_btn_tu_rem:
+            if len(st.session_state["lista_tu_formulario"]) > 0:
+                if st.button("❌ Remover Último T e U", use_container_width=True, key="btn_rem_tu"):
+                    st.session_state["lista_tu_formulario"].pop()
+                    st.rerun()
+
+        st.divider()
+
+        # ==============================================================================
+        # PARTE B: LOOP - CONTROLE APENAS DE TEMPERATURA (T)
+        # ==============================================================================
+        st.markdown("### 🌡️ Controles de Temperatura (Termômetros Simples)")
+        
+        lista_t_atualizada = []
+        
+        for idx, item in enumerate(st.session_state["lista_t_formulario"]):
+            with st.expander(f"📋 Registro T nº {idx + 1} - {item.get('local_controle_t', 'Novo Local')}", expanded=True):
+                # Linha 1: Identificação e Medições
+                col_t_nome, col_t_val = st.columns([3, 1])
+                with col_t_nome:
+                    local_t = st.text_input("Nome do local ou equipamento (Estoque/Geladeira):", value=item.get("local_controle_t", ""), key=f"t_nome_{idx}")
+                with col_t_val:
+                    t_inspecao = st.text_input("Temperatura na Inspeção (°C):", value=item.get("t_inspecao", ""), key=f"t_val_{idx}")
+                
+                # Linha 2: Planilha e Adequação de Valores
+                col_t_plan, col_t_conf, col_t_marca = st.columns([1.2, 1.2, 1.5])
+                with col_t_plan:
+                    v_plan_t = item.get("planilha_controle_t", "Não avaliado")
+                    plan_t = st.radio("Possui planilha de controle?", opcoes_status, index=mapeamento_status.get(v_plan_t, 0), key=f"t_plan_{idx}", horizontal=True)
+                with col_t_conf:
+                    v_conf_t = item.get("conformidade_t", "Não avaliado")
+                    conf_t = st.radio("Valores são adequados?", opcoes_status, index=mapeamento_status.get(v_conf_t, 0), key=f"t_conf_{idx}", horizontal=True)
+                with col_t_marca:
+                    marca_t = st.text_input("Marca/Modelo do Termômetro:", value=item.get("marca_modelo_termometro", ""), key=f"t_marca_{idx}")
+                
+                # Linha 3: Calibração
+                st.markdown("Validação Metrológica do Equipamento")
+                v_cal_t = item.get("possui_calibracao_t", "Não avaliado")
+                cal_t = st.radio("Avaliação da Calibração:", opcoes_status, index=mapeamento_status.get(v_cal_t, 0), key=f"t_cal_{idx}", horizontal=True)
+                
+                dados_cal_t = {"certificado": "", "empresa": "", "data": None, "validade": None}
+                dados_aq_t = {"nf": "", "data": None, "fornecedor": ""}
+                
+                if cal_t in ["C", "NC"]:
+                    v_tipo_t = item.get("tipo_comprovacao_t", "Calibração")
+                    idx_tipo_t = 0 if v_tipo_t == "Calibração" else 1
+                    tipo_comp_t = st.radio("Tipo de comprovação:", opcoes_tipo_comprovacao, index=idx_tipo_t, key=f"t_tipo_comp_{idx}", horizontal=True)
+                    
+                    if tipo_comp_t == "Calibração":
+                        col_tc1, col_tc2, col_tc3, col_tc4 = st.columns(4)
+                        with col_tc1:
+                            dados_cal_t["certificado"] = st.text_input("Nº Certificado:", value=item.get("certificado_calibracao_t", ""), key=f"t_cert_{idx}")
+                        with col_tc2:
+                            dados_cal_t["empresa"] = st.text_input("Empresa Prestadora:", value=item.get("empresa_calibracao_t", ""), key=f"t_emp_cal_{idx}")
+                        with col_tc3:
+                            d_c_t = item.get("data_calibracao_t", None)
+                            dt_c_t = pd.to_datetime(d_c_t).date() if d_c_t and not pd.isna(d_c_t) else None
+                            dados_cal_t["data"] = st.date_input("Data Calibração:", value=dt_c_t, key=f"t_dt_cal_{idx}")
+                        with col_tc4:
+                            v_c_t = item.get("validade_calibracao_t", None)
+                            dt_v_t = pd.to_datetime(v_c_t).date() if v_c_t and not pd.isna(v_c_t) else None
+                            dados_cal_t["validade"] = st.date_input("Validade:", value=dt_v_t, key=f"t_val_cal_{idx}")
+                    else:
+                        col_ta1, col_ta2, col_ta3 = st.columns([1, 1, 2])
+                        with col_ta1:
+                            dados_aq_t["nf"] = st.text_input("Nº Nota Fiscal:", value=item.get("nota_aquisicao_t", ""), key=f"t_nf_{idx}")
+                        with col_ta2:
+                            d_a_t = item.get("data_aquisicao_t", None)
+                            dt_a_t = pd.to_datetime(d_a_t).date() if d_a_t and not pd.isna(d_a_t) else None
+                            dados_aq_t["data"] = st.date_input("Data Aquisição:", value=dt_a_t, key=f"t_dt_aq_{idx}")
+                        with col_ta3:
+                            dados_aq_t["fornecedor"] = st.text_input("Fornecedor:", value=item.get("empresa_aquisicao_t", ""), key=f"t_forn_{idx}")
+                
+                # Compacta as informações capturadas deste índice
+                lista_t_atualizada.append({
+                    "local_controle_t": local_t, 
+                    "t_inspecao": t_inspecao,
+                    "planilha_controle_t": plan_t, 
+                    "conformidade_t": conf_t, 
+                    "marca_modelo_termometro": marca_t,
+                    "possui_calibracao_t": cal_t, 
+                    "tipo_comprovacao_t": tipo_comp_t if cal_t in ["C", "NC"] else "",
+                    "certificado_calibracao_t": dados_cal_t["certificado"], 
+                    "empresa_calibracao_t": dados_cal_t["empresa"],
+                    "data_calibracao_t": str(dados_cal_t["data"]) if dados_cal_t["data"] else "", 
+                    "validade_calibracao_t": str(dados_cal_t["validade"]) if dados_cal_t["validade"] else "",
+                    "nota_aquisicao_t": dados_aq_t["nf"], 
+                    "data_aquisicao_t": str(dados_aq_t["data"]) if dados_aq_t["data"] else "", 
+                    "empresa_aquisicao_t": dados_aq_t["fornecedor"]
+                })
+
+        # Botoes de Controle da Lista T 
+        col_btn_t_add, col_btn_t_rem, _ = st.columns([1.5, 1.5, 5])
+        with col_btn_t_add:
+            if st.button("➕ Adicionar Controle Temperatura", use_container_width=True, key="btn_add_t"):
+                lista_temp_t = []
+                for i in range(len(st.session_state["lista_t_formulario"])):
+                    lista_temp_t.append({
+                        "local_controle_t": st.session_state[f"t_nome_{i}"], 
+                        "t_inspecao": st.session_state[f"t_val_{i}"],
+                        "planilha_controle_t": st.session_state[f"t_plan_{i}"], 
+                        "conformidade_t": st.session_state[f"t_conf_{i}"], 
+                        "marca_modelo_termometro": st.session_state[f"t_marca_{i}"],
+                        "possui_calibracao_t": st.session_state[f"t_cal_{i}"], 
+                        "tipo_comprovacao_t": st.session_state.get(f"t_tipo_comp_{i}", "Calibração")
+                    })
+                lista_temp_t.append({"local_controle_t": "", "t_inspecao": "", "planilha_controle_t": "Não avaliado", "conformidade_t": "Não avaliado", "marca_modelo_termometro": "", "possui_calibracao_t": "Não avaliado"})
+                st.session_state["lista_t_formulario"] = lista_temp_t
+                st.rerun()
+                
+        with col_btn_t_rem:
+            if len(st.session_state["lista_t_formulario"]) > 0:
+                if st.button("❌ Remover Último Termômetro", use_container_width=True, key="btn_rem_t"):
+                    st.session_state["lista_t_formulario"].pop()
+                    st.rerun()
+
+        # Vincula o empacotamento das duas sublistas em um único objeto JSON estruturado para a coluna JSONB do banco
+        dados_inspecao_atual["locais_controle_geladeiras_json"] = {
+            "lista_tu": lista_tu_atualizada,
+            "lista_t": lista_t_atualizada
+        }
+
 
     # ==============================================================================
     # TAB 4: COMERCIALIZAÇÃO

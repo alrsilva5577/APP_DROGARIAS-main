@@ -59,8 +59,11 @@ empresa_aso
 numero_aso
 
 (loop para locais de controle e geladeiras termolabeis -lista!)
+local_controle_t_u
 t_agora
 u_agora
+planilha_controle_t_u
+conformidade_t_u
 marca_modelo_termohigrometro
 possui_calibracao
 nota_aquisicao
@@ -70,8 +73,21 @@ certificado_calibracao
 empresa_calibracao
 data_calibracao
 validade_calibracao
-planilha_controle_t_u
-ultimo_registro_t_u
+
+local_controle_t
+t_inspecao
+planilha_controle_t
+conformidade_t
+marca_modelo_termometro
+possui_calibracao_t
+nota_aquisicao_t
+data_aquisicao_t
+empresa_aquisicao_t
+certificado_calibracao_t
+empresa_calibracao_t
+data_calibracao_t
+validade_calibracao_t
+
 
 (comercializacao_produtos)
 embalagem_produtos
