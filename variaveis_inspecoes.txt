@@ -136,6 +136,81 @@ data__transmissao_sngpc
 periodo_transmissao_sngpc
 validacao_transmissao_sngpc
 
+Vamos fazer a Aba de Comercialização:
+A embalagem e rotulagem dos produtos comercializados verificados estão conforme a legislação vigente? resposta padrão, variavel: embalagem_produtos
+Se NC: incluir a lista de produtos não conformes encontrados - lista_produtos_nc
+
+Os produtos disponíveis para a venda são permitidos pela legislação para a atividade do estabelecimento? resposta padrão, variavel: permitidos_venda_produtos
+Se NC: incluir a lista de produtos não permitidos encontrados - lista_produtos_np
+
+Botão: O estabelecimento dispensa Medicamentos sujeitos à Controle Especial (Portaria SVS n° 344/98)? Resposta Sim ou Não em dispensa_controle_especial.
+Ao clicar Sim, aparece as perguntas relativas à atividade (todas abaixo).
+
+Possui local de acesso restrito (trancado à chave) para armazenamento de medicamentos sujeitos a controle especial? - local_armazenamento_controle_especial
+Possui área segregada para guarda temporária de medicamentos controlados pela Portaria 344/98 a serem inutilizados? - area_segregada_inutilizados_mc
+
+Dispensa medicamentos retinóicos (lista C2) de forma regular? Resposta padrão - dispensa_retinoicos. Se C ou NC abrir opções:
+- Data da Autorização (data_autorizacao)
+- Número Edital VISA (n_edital_visa_autorizacao)
+- Qual Sistema Informatizado Utilizado? (sistema_informatizado_autorizacao)
+- Tipo de Escrituração - Opções: Livro Informatizado com termo de abertura e encerramento pela VISA/ Informações no sistema sem lavratura de livro digital/ Livros físicos/ Observação (tipo_escrituracao)
+
+Dispensa medicamentos da lista A (receita amarela) de forma regular? Resposta padrão - dispensa_lista_a. Se C ou NC abrir opções:
+- Data do último protocolo da Relação de Notificações de Receitas A (RMNRA) entregue à VISA (data_protocolo_rmnra)
+- Observação: campo livre
+
+Dispensa medicamentos da lista B2 (anorexígenos) de forma regular? Resposta padrão - dispensa_lista_b2. Se C ou NC abrir opções:
+- Data do último protocolo da Relação de Notificações de Receitas B2 (RMNRB2) entregues à VISA (data_protocolo_rmnrb2)
+- Observação: campo livre
+
+Checagem de Envio Balanço de Medicamentos Psicoativos e de outros Sujeitos à Controle Especial (BMPO) para VISA:
+- Trimestral / Data último protocolo: (data_envio_bmpo_trimestral)
+- Anual / Data último protocolo: (data_envio_bmpo_anual)
+- Observação: campo livre
+
+Conferência de Estoque
+(botão para adicionar MEDICAMENTO CONTROLADO verificado, como um loop, formando uma lista dos campos seguintes)
+- Princípio Ativo (principio_ativo_mc)
+- Apresentação (apresentacao_mc)
+- Fabricante (fabricante_mc)
+- Lote (lote_mc)
+- Validade (validade_mc)
+- Quantidade (estoque físico) (quantidade_fisico_mc)
+- Quantidade (sistema) (quantidade_sistema_mc)
+- Observação: campo livre
+
+(botão para adicionar ANTIMICROBIANO verificado, como um loop, formando uma lista dos campos seguintes)
+- Princípio Ativo (principio_ativo_am)
+- Apresentação (apresentacao_am)
+- Fabricante (fabricante_am)
+- Lote (lote_am)
+- Validade (validade_am)
+- Quantidade (estoque físico) (quantidade_fisico_am)
+- Quantidade (sistema) (quantidade_sistema_am)
+- Observação: campo livre
+
+Possui termo de Inutilização de Medicamentos conforme? - resposta padrão, possui_termo_inutilizacao_visa
+Se C ou NC, abrir campo para "Data último protocolo entregue na VISA" em data_termo_inutilizacao_visa
+
+Realiza transmissão ao SNGPC de maneira regular? - resposta padrão, faz_transmissao_sngpc
+Se C ou NC, abrir campos:
+- Data do último envio (data__transmissao_sngpc)
+- Período da última transmissão enviada (periodo_transmissao_sngpc)
+- Data da Validação (validacao_transmissao_sngpc)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 (area fisica)
 possui_adm
 condicoes_estruturais_adm

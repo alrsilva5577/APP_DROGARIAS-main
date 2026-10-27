@@ -316,7 +316,6 @@ def carregar_historico_cnpj(cnpj_limpo):
                 dados_linha = dict(resultado)
                 
                 # Converte a string JSON do banco de volta para dicionário Python
-                import json
                 campo_json = dados_linha.get("locais_controle_geladeiras_json")
                 if isinstance(campo_json, str) and campo_json.strip():
                     try:
@@ -324,7 +323,16 @@ def carregar_historico_cnpj(cnpj_limpo):
                     except Exception:
                         dados_linha["locais_controle_geladeiras_json"] = {}
                 # ─────────────────────────────────────────────────────────────────────────────
-                
+                # Realiza a leitura reversa de segurança para os campos JSONB da Tab 4
+                for col_j in ["medicamentos_controlados_verificados_json", "antimicrobianos_verificados_json"]:
+                    c_json = dados_linha.get(col_j)
+                    if isinstance(c_json, str) and c_json.strip():
+                        try:
+                            dados_linha[col_j] = json.loads(c_json)
+                        except Exception:
+                            dados_linha[col_j] = []
+
+
                 st.session_state["historico_pre_preenchido"] = dados_linha
                 return True
                 
@@ -1643,10 +1651,376 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
 
 
     # ==============================================================================
-    # TAB 4: COMERCIALIZAÇÃO
+    # TAB 4: COMERCIALIZAÇÃO (PRODUTOS E MEDICAMENTOS CONTROLADOS)
     # ==============================================================================
     with tab_comercializacao:
-        st.write("Aguardando inserção dos campos manuais de produtos e controle especial...")
+        st.markdown("## 📦 Seção: Comercialização de Produtos e Controle Especial")
+
+        # --- 4.1 PRODUTOS GERAIS ---
+        st.markdown("### 🔍 Comercialização de Produtos Gerais")
+        
+        col_emb, col_perm = st.columns(2)
+        
+        with col_emb:
+            st.markdown("**A embalagem e rotulagem dos produtos comercializados verificados estão conforme a legislação vigente?**")
+            val_emb = historico.get("embalagem_produtos", "Não avaliado")
+            dados_inspecao_atual["embalagem_produtos"] = st.radio(
+                "Avaliação Embalagens:", opcoes_status, index=mapeamento_status.get(val_emb, 0), key="rad_embalagem_produtos", horizontal=True
+            )
+            if dados_inspecao_atual["embalagem_produtos"] == "NC":
+                val_lp_nc = historico.get("lista_produtos_nc", "")
+                dados_inspecao_atual["lista_produtos_nc"] = st.text_area(
+                    "Lista de produtos não conformes encontrados:", 
+                    value=str(val_lp_nc) if val_lp_nc and str(val_lp_nc) != "None" else "",
+                    key="ta_lista_produtos_nc", placeholder="Ex: Produto X - Lote Y com rasura na rotulagem..."
+                )
+            else:
+                dados_inspecao_atual["lista_produtos_nc"] = None
+
+        with col_perm:
+            st.markdown("**Os produtos disponíveis para a venda são permitidos pela legislação para a atividade do estabelecimento?**")
+            val_perm = historico.get("permitidos_venda_produtos", "Não avaliado")
+            dados_inspecao_atual["permitidos_venda_produtos"] = st.radio(
+                "Avaliação Produtos Permitidos:", opcoes_status, index=mapeamento_status.get(val_perm, 0), key="rad_permitidos_venda_produtos", horizontal=True
+            )
+            if dados_inspecao_atual["permitidos_venda_produtos"] == "NC":
+                val_lp_np = historico.get("lista_produtos_np", "")
+                dados_inspecao_atual["lista_produtos_np"] = st.text_area(
+                    "Lista de produtos não permitidos encontrados:", 
+                    value=str(val_lp_np) if val_lp_np and str(val_lp_np) != "None" else "",
+                    key="ta_lista_produtos_np", placeholder="Ex: Venda de produtos alheios ao comércio farmacêutico (Ex: Conveniência inadequada)..."
+                )
+            else:
+                dados_inspecao_atual["lista_produtos_np"] = None
+
+        st.divider()
+
+        # --- 4.2 MEDICAMENTOS SUJEITOS A CONTROLE ESPECIAL (PORTARIA 344/98) ---
+        st.markdown("### 🔒 Controle Especial (Portaria SVS nº 344/98)")
+        
+        # Pergunta norteadora: Inicia em "Não avaliado" se for empresa nova
+        val_disp_ce = historico.get("dispensa_controle_especial", "Não avaliado")
+        idx_disp_ce = mapeamento_sim_nao.get(val_disp_ce, 0)
+        
+        st.markdown("**O estabelecimento dispensa Medicamentos sujeitos à Controle Especial (Portaria SVS n° 344/98)?**")
+        dados_inspecao_atual["dispensa_controle_especial"] = st.radio(
+            "Dispensa Controle Especial?", opcoes_sim_nao, index=idx_disp_ce, key="rad_dispensa_controle_especial", horizontal=True
+        )
+
+        # LÓGICA DINÂMICA: Abre todas as perguntas internas apenas se clicar em "Sim"
+        if dados_inspecao_atual["dispensa_controle_especial"] == "Sim":
+            st.markdown("#### 📂 Requisitos Operacionais e Escrituração")
+            
+            col_ce1, col_ce2 = st.columns(2)
+            with col_ce1:
+                st.markdown("**Possui local de acesso restrito (trancado à chave) para armazenamento de medicamentos sujeitos a controle especial?**")
+                val_loc_ce = historico.get("local_armazenamento_controle_especial", "Não avaliado")
+                dados_inspecao_atual["local_armazenamento_controle_especial"] = st.radio(
+                    "Local Acesso Restrito:", opcoes_status, index=mapeamento_status.get(val_loc_ce, 0), key="rad_local_armazenamento_controle_especial", horizontal=True
+                )
+            with col_ce2:
+                st.markdown("**Possui área segregada para guarda temporária de medicamentos controlados pela Portaria 344/98 a serem inutilizados?**")
+                val_seg_ce = historico.get("area_segregada_inutilizados_mc", "Não avaliado")
+                dados_inspecao_atual["area_segregada_inutilizados_mc"] = st.radio(
+                    "Área Segregada Inutilizados:", opcoes_status, index=mapeamento_status.get(val_seg_ce, 0), key="rad_area_segregada_inutilizados_mc", horizontal=True
+                )
+
+            st.divider()
+
+            # --- SUB-BLOCO: RETINÓICOS (LISTA C2) ---
+            st.markdown("##### 💊 Medicamentos Retinóicos (Lista C2)")
+            st.markdown("**Dispensa medicamentos retinóicos (lista C2) de forma regular?**")
+            val_ret = historico.get("dispensa_retinoicos", "Não avaliado")
+            dados_inspecao_atual["dispensa_retinoicos"] = st.radio(
+                "Avaliação Retinóicos:", opcoes_status, index=mapeamento_status.get(val_ret, 0), key="rad_dispensa_retinoicos", horizontal=True
+            )
+            
+            if dados_inspecao_atual["dispensa_retinoicos"] in ["C", "NC"]:
+                col_r1, col_r2, col_r3 = st.columns(3)
+                with col_r1:
+                    val_dt_aut = historico.get("data_autorizacao", None)
+                    dt_p_aut = pd.to_datetime(val_dt_aut).date() if val_dt_aut and not pd.isna(val_dt_aut) else None
+                    dados_inspecao_atual["data_autorizacao"] = st.date_input("Data da Autorização:", value=dt_p_aut, key="di_data_autorizacao")
+                with col_r2:
+                    val_ed_visa = historico.get("n_edital_visa_autorizacao", "")
+                    dados_inspecao_atual["n_edital_visa_autorizacao"] = st.text_input(
+                        "Número Edital VISA:", value=str(val_ed_visa) if val_ed_visa and str(val_ed_visa) != "None" else "", key="ti_n_edital_visa_autorizacao"
+                    )
+                with col_r3:
+                    val_sis_aut = historico.get("sistema_informatizado_autorizacao", "")
+                    dados_inspecao_atual["sistema_informatizado_autorizacao"] = st.text_input(
+                        "Qual Sistema Informatizado Utilizado?", value=str(val_sis_aut) if val_sis_aut and str(val_sis_aut) != "None" else "", key="ti_sistema_informatizado_autorizacao"
+                    )
+                
+                opcoes_escrituracao = [
+                    "Não informado", 
+                    "Livro Informatizado com termo de abertura e encerramento pela VISA", 
+                    "Informações no sistema sem lavratura de livro digital", 
+                    "Livros físicos", 
+                    "Observação"
+                ]
+                map_escrituracao = {v: i for i, v in enumerate(opcoes_escrituracao)}
+                val_esc_tipo = historico.get("tipo_escrituracao", "Não informado")
+                dados_inspecao_atual["tipo_escrituracao"] = st.selectbox(
+                    "Tipo de Escrituração:", options=opcoes_escrituracao, index=map_escrituracao.get(val_esc_tipo, 0), key="sb_tipo_escrituracao"
+                )
+            else:
+                dados_inspecao_atual["data_autorizacao"] = None
+                dados_inspecao_atual["n_edital_visa_autorizacao"] = None
+                dados_inspecao_atual["sistema_informatizado_autorizacao"] = None
+                dados_inspecao_atual["tipo_escrituracao"] = None
+
+            st.divider()
+
+            # --- SUB-BLOCO: LISTA A ---
+            st.markdown("##### 🟡 Medicamentos da Lista A (Receita Amarela)")
+            st.markdown("**Dispensa medicamentos da lista A (receita amarela) de forma regular?**")
+            val_list_a = historico.get("dispensa_lista_a", "Não avaliado")
+            dados_inspecao_atual["dispensa_lista_a"] = st.radio(
+                "Avaliação Lista A:", opcoes_status, index=mapeamento_status.get(val_list_a, 0), key="rad_dispensa_lista_a", horizontal=True
+            )
+            if dados_inspecao_atual["dispensa_lista_a"] in ["C", "NC"]:
+                val_dt_rmnra = historico.get("data_protocolo_rmnra", None)
+                dt_p_rmnra = pd.to_datetime(val_dt_rmnra).date() if val_dt_rmnra and not pd.isna(val_dt_rmnra) else None
+                dados_inspecao_atual["data_protocolo_rmnra"] = st.date_input("Data do último protocolo da RMNRA entregue à VISA:", value=dt_p_rmnra, key="di_data_protocolo_rmnra")
+                
+                val_obs_a = historico.get("obs_lista_a", "") # criará campo livre complementar seguro
+                dados_inspecao_atual["obs_lista_a"] = st.text_input("Observação (Lista A):", value=str(val_obs_a) if val_obs_a and str(val_obs_a) != "None" else "", key="ti_obs_lista_a")
+            else:
+                dados_inspecao_atual["data_protocolo_rmnra"] = None
+                dados_inspecao_atual["obs_lista_a"] = None
+
+            st.divider()
+
+            # --- SUB-BLOCO: LISTA B2 ---
+            st.markdown("##### 🧪 Medicamentos da Lista B2 (Anorexígenos)")
+            st.markdown("**Dispensa medicamentos da lista B2 (anorexígenos) de forma regular?**")
+            val_list_b2 = historico.get("dispensa_lista_b2", "Não avaliado")
+            dados_inspecao_atual["dispensa_lista_b2"] = st.radio(
+                "Avaliação Lista B2:", opcoes_status, index=mapeamento_status.get(val_list_b2, 0), key="rad_dispensa_lista_b2", horizontal=True
+            )
+            if dados_inspecao_atual["dispensa_lista_b2"] in ["C", "NC"]:
+                val_dt_rmnrb2 = historico.get("data_protocolo_rmnrb2", None)
+                dt_p_rmnrb2 = pd.to_datetime(val_dt_rmnrb2).date() if val_dt_rmnrb2 and not pd.isna(val_dt_rmnrb2) else None
+                dados_inspecao_atual["data_protocolo_rmnrb2"] = st.date_input("Data do último protocolo da RMNRB2 entregue à VISA:", value=dt_p_rmnrb2, key="di_data_protocolo_rmnrb2")
+                val_obs_b2 = historico.get("obs_lista_b2", "")
+                dados_inspecao_atual["obs_lista_b2"] = st.text_input("Observação (Lista B2):", value=str(val_obs_b2) if val_obs_b2 and str(val_obs_b2) != "None" else "", key="ti_obs_lista_b2")
+            else:
+                dados_inspecao_atual["data_protocolo_rmnrb2"] = None
+                dados_inspecao_atual["obs_lista_b2"] = None
+
+            st.divider()
+
+            # --- SUB-BLOCO: BALANÇOS BMPO ---
+            st.markdown("##### 📊 Checagem de Envio de Balanços (BMPO) para VISA")
+            col_bmpo1, col_bmpo2 = st.columns(2)
+            with col_bmpo1:
+                val_bmpo_t = historico.get("data_envio_bmpo_trimestral", None)
+                dt_p_bmpo_t = pd.to_datetime(val_bmpo_t).date() if val_bmpo_t and not pd.isna(val_bmpo_t) else None
+                dados_inspecao_atual["data_envio_bmpo_trimestral"] = st.date_input("Trimestral / Data último protocolo:", value=dt_p_bmpo_t, key="di_data_envio_bmpo_trimestral")
+            with col_bmpo2:
+                val_bmpo_a = historico.get("data_envio_bmpo_anual", None)
+                dt_p_bmpo_a = pd.to_datetime(val_bmpo_a).date() if val_bmpo_a and not pd.isna(val_bmpo_a) else None
+                dados_inspecao_atual["data_envio_bmpo_anual"] = st.date_input("Anual / Data último protocolo:", value=dt_p_bmpo_a, key="di_data_envio_bmpo_anual")
+            
+            val_obs_bmpo = historico.get("obs_bmpo", "")
+            dados_inspecao_atual["obs_bmpo"] = st.text_input("Observação (Balanços BMPO):", value=str(val_obs_bmpo) if val_obs_bmpo and str(val_obs_bmpo) != "None" else "", key="ti_obs_bmpo")
+
+            st.divider()
+
+            # ==============================================================================
+            # MOTOR DE CONFERÊNCIA DE ESTOQUE (MEDICAMENTOS CONTROLADOS E ANTIMICROBIANOS)
+            # ==============================================================================
+            st.markdown("### 📋 Conferência Dinâmica de Estoque (Lotes e Sistemas)")
+            
+            # Recupera as listas estruturadas salvas nas colunas JSONB correspondentes do Supabase
+            hist_mc = historico.get("medicamentos_controlados_verificados_json", [])
+            if not isinstance(hist_mc, list): 
+                hist_mc = []
+            hist_am = historico.get("antimicrobianos_verificados_json", [])
+            if not isinstance(hist_am, list): 
+                hist_am = []
+
+            if "lista_mc_formulario" not in st.session_state or st.session_state.get("ultimo_cnpj_visto_comercial") != cnpj_estabelecimento:
+                st.session_state["ultimo_cnpj_visto_comercial"] = cnpj_estabelecimento
+                st.session_state["lista_mc_formulario"] = hist_mc
+                st.session_state["lista_am_formulario"] = hist_am
+
+            # --- LOOP A: MEDICAMENTOS CONTROLADOS ---
+            st.markdown("##### 🚨 Medicamentos Controlados Verificados")
+            lista_mc_atualizada = []
+            for idx, item_mc in enumerate(st.session_state["lista_mc_formulario"]):
+                with st.expander(f"📦 Controlado nº {idx + 1} - {item_mc.get('principio_ativo_mc', 'Novo Ativo')}", expanded=True):
+                    c1, c2, c3 = st.columns([2, 2, 1.5])
+                    with c1: 
+                        p_ativo_mc = st.text_input("Princípio Ativo:", value=item_mc.get("principio_ativo_mc", ""), key=f"mc_pa_{idx}")
+                    with c2: 
+                        apres_mc = st.text_input("Apresentação / Concentração:", value=item_mc.get("apresentacao_mc", ""), key=f"mc_ap_{idx}")
+                    with c3: 
+                        fab_mc = st.text_input("Fabricante:", value=item_mc.get("fabricante_mc", ""), key=f"mc_fa_{idx}")
+                    
+                    c4, c5, c6, c7 = st.columns([1.5, 1.5, 1, 1])
+                    with c4: 
+                        lote_mc = st.text_input("Lote:", value=item_mc.get("lote_mc", ""), key=f"mc_lo_{idx}")
+                    with c5:
+                        v_v_mc = item_mc.get("validade_mc", "")
+                        val_mc = st.text_input("Validade (MM/AAAA ou data):", value=v_v_mc, key=f"mc_va_{idx}")
+                    with c6: 
+                        q_fis_mc = st.text_input("Qtd (Estoque Físico):", value=item_mc.get("quantidade_fisico_mc", ""), key=f"mc_qf_{idx}")
+                    with c7: 
+                        q_sis_mc = st.text_input("Qtd (Sistema):", value=item_mc.get("quantidade_sistema_mc", ""), key=f"mc_qs_{idx}")
+                    
+                    obs_mc = st.text_input("Observação / Desvio encontrado:", value=item_mc.get("obs_mc", ""), key=f"mc_ob_{idx}")
+                    
+                    lista_mc_atualizada.append({
+                        "principio_ativo_mc": p_ativo_mc, "apresentacao_mc": apres_mc, "fabricante_mc": fab_mc,
+                        "lote_mc": lote_mc, "validade_mc": val_mc, "quantidade_fisico_mc": q_fis_mc, "quantidade_sistema_mc": q_sis_mc, "obs_mc": obs_mc
+                    })
+
+            col_btn_mc_add, col_btn_mc_rem, _ = st.columns([1.5, 1.5, 5])
+            with col_btn_mc_add:
+                if st.button("➕ Adicionar Medicamento Controlado", use_container_width=True, key="btn_add_mc"):
+                    l_temp = []
+                    for i in range(len(st.session_state["lista_mc_formulario"])):
+                        l_temp.append({
+                            "principio_ativo_mc": st.session_state[f"mc_pa_{i}"], "apresentacao_mc": st.session_state[f"mc_ap_{i}"], "fabricante_mc": st.session_state[f"mc_fa_{i}"],
+                            "lote_mc": st.session_state[f"mc_lo_{i}"], "validade_mc": st.session_state[f"mc_va_{i}"], "quantidade_fisico_mc": st.session_state[f"mc_qf_{i}"], "quantidade_sistema_mc": st.session_state[f"mc_qs_{i}"], "obs_mc": st.session_state[f"mc_ob_{i}"]
+                        })
+                    l_temp.append({"principio_ativo_mc": "", "apresentacao_mc": "", "fabricante_mc": "", "lote_mc": "", "validade_mc": "", "quantidade_fisico_mc": "", "quantidade_sistema_mc": "", "obs_mc": ""})
+                    st.session_state["lista_mc_formulario"] = l_temp
+                    st.rerun()
+            with col_btn_mc_rem:
+                if len(st.session_state["lista_mc_formulario"]) > 0:
+                    if st.button("❌ Remover Último Controlado", use_container_width=True, key="btn_rem_mc"):
+                        st.session_state["lista_mc_formulario"].pop()
+                        st.rerun()
+
+            st.divider()
+           
+            # --- LOOP B: ANTIMICROBIANOS ---
+            st.markdown("##### 🧫 Antimicrobianos Verificados (RDC 20/11)")
+            lista_am_atualizada = []
+            
+            for idx, item_am in enumerate(st.session_state["lista_am_formulario"]):
+                with st.expander(f"💊 Antimicrobiano nº {idx + 1} - {item_am.get('principio_ativo_am', 'Novo Ativo')}", expanded=True):
+                    a1, a2, a3 = st.columns([2, 2, 1.5])
+                    with a1: 
+                        p_ativo_am = st.text_input("Princípio Ativo:", value=item_am.get("principio_ativo_am", ""), key=f"am_pa_{idx}")
+                    with a2: 
+                        apres_am = st.text_input("Apresentação / Concentração:", value=item_am.get("apresentacao_am", ""), key=f"am_ap_{idx}")
+                    with a3: 
+                        fab_am = st.text_input("Fabricante:", value=item_am.get("fabricante_am", ""), key=f"am_fa_{idx}")
+                    
+                    a4, a5, a6, a7 = st.columns([1.5, 1.5, 1, 1])
+                    with a4: 
+                        lote_am = st.text_input("Lote:", value=item_am.get("lote_am", ""), key=f"am_lo_{idx}")
+                    with a5:
+                        v_v_am = item_am.get("validade_am", "")
+                        val_am = st.text_input("Validade (MM/AAAA ou data):", value=v_v_am, key=f"am_va_{idx}")
+                    with a6: 
+                        q_fis_am = st.text_input("Qtd (Estoque Físico):", value=item_am.get("quantidade_fisico_am", ""), key=f"am_qf_{idx}")
+                    with a7: 
+                        q_sis_am = st.text_input("Qtd (Sistema):", value=item_am.get("quantidade_sistema_am", ""), key=f"am_qs_{idx}")
+                    
+                    obs_am = st.text_input("Observação / Desvio encontrado:", value=item_am.get("obs_am", ""), key=f"am_ob_{idx}")
+                    
+                    lista_am_atualizada.append({
+                        "principio_ativo_am": p_ativo_am, 
+                        "apresentacao_am": apres_am, 
+                        "fabricante_am": fab_am,
+                        "lote_am": lote_am, 
+                        "validade_am": val_am, 
+                        "quantidade_fisico_am": q_fis_am, 
+                        "quantidade_sistema_am": q_sis_am, 
+                        "obs_am": obs_am
+                    })
+
+            # Botoes de Controle da Lista AM (Ficam fora do loop for)
+            col_btn_am_add, col_btn_am_rem, _ = st.columns([1.5, 1.5, 5])
+            with col_btn_am_add:
+                if st.button("➕ Adicionar Antimicrobiano", use_container_width=True, key="btn_add_am"):
+                    l_temp_am = []
+                    for i in range(len(st.session_state["lista_am_formulario"])):
+                        l_temp_am.append({
+                            "principio_ativo_am": st.session_state[f"am_pa_{i}"], 
+                            "apresentacao_am": st.session_state[f"am_ap_{i}"], 
+                            "fabricante_am": st.session_state[f"am_fa_{i}"],
+                            "lote_am": st.session_state[f"am_lo_{i}"], 
+                            "validade_am": st.session_state[f"am_va_{i}"], 
+                            "quantidade_fisico_am": st.session_state[f"am_qf_{i}"], 
+                            "quantidade_sistema_am": st.session_state[f"am_qs_{i}"], 
+                            "obs_am": st.session_state[f"am_ob_{i}"]
+                        })
+                    l_temp_am.append({"principio_ativo_am": "", "apresentacao_am": "", "fabricante_am": "", "lote_am": "", "validade_am": "", "quantidade_fisico_am": "", "quantidade_sistema_am": "", "obs_am": ""})
+                    st.session_state["lista_am_formulario"] = l_temp_am
+                    st.rerun()
+                    
+            with col_btn_am_rem:
+                if len(st.session_state["lista_am_formulario"]) > 0:
+                    if st.button("❌ Remover Último Antimicrobiano", use_container_width=True, key="btn_rem_am"):
+                        st.session_state["lista_am_formulario"].pop()
+                        st.rerun()
+
+            # Vincula o empacotamento das listas dinâmicas de conferência de estoque para o dicionário mestre de envio
+            dados_inspecao_atual["medicamentos_controlados_verificados_json"] = lista_mc_atualizada
+            dados_inspecao_atual["antimicrobianos_verificados_json"] = lista_am_atualizada
+            
+            st.divider()
+
+            # --- SUB-BLOCO: INUTILIZAÇÃO E SNGPC ---
+            st.markdown("##### 📑 Inutilização de Produtos e SNGPC")
+            col_inut, col_sngpc = st.columns(2)
+            
+            with col_inut:
+                st.markdown("Possui termo de Inutilização de Medicamentos conforme?")
+                val_t_inut = historico.get("possui_termo_inutilizacao_visa", "Não avaliado")
+                dados_inspecao_atual["possui_termo_inutilizacao_visa"] = st.radio(
+                    "Termo Inutilização:", opcoes_status, index=mapeamento_status.get(val_t_inut, 0), key="rad_possui_termo_inutilizacao_visa", horizontal=True
+                )
+                if dados_inspecao_atual["possui_termo_inutilizacao_visa"] in ["C", "NC"]:
+                    val_dt_inut = historico.get("data_termo_inutilizacao_visa", None)
+                    dt_p_inut = pd.to_datetime(val_dt_inut).date() if val_dt_inut and not pd.isna(val_dt_inut) else None
+                    dados_inspecao_atual["data_termo_inutilizacao_visa"] = st.date_input("Data último protocolo entregue na VISA:", value=dt_p_inut, key="di_data_termo_inutilizacao_visa")
+                else:
+                    dados_inspecao_atual["data_termo_inutilizacao_visa"] = None
+                    
+            with col_sngpc:
+                st.markdown("Realiza transmissão ao SNGPC de maneira regular?")
+                val_trans_s = historico.get("faz_transmissao_sngpc", "Não avaliado")
+                dados_inspecao_atual["faz_transmissao_sngpc"] = st.radio(
+                    "Transmissão SNGPC:", opcoes_status, index=mapeamento_status.get(val_trans_s, 0), key="rad_faz_transmissao_sngpc", horizontal=True
+                )
+                if dados_inspecao_atual["faz_transmissao_sngpc"] in ["C", "NC"]:
+                    val_dt_sngpc = historico.get("data__transmissao_sngpc", None)
+                    dt_p_sngpc = pd.to_datetime(val_dt_sngpc).date() if val_dt_sngpc and not pd.isna(val_dt_sngpc) else None
+                    dados_inspecao_atual["data__transmissao_sngpc"] = st.date_input("Data do último envio:", value=dt_p_sngpc, key="di_data__transmissao_sngpc")
+                    
+                    val_per_sngpc = historico.get("periodo_transmissao_sngpc", "")
+                    dados_inspecao_atual["periodo_transmissao_sngpc"] = st.text_input("Período da última transmissão enviada:", value=str(val_per_sngpc) if val_per_sngpc and str(val_per_sngpc) != "None" else "", key="ti_periodo_transmissao_sngpc")
+                    
+                    val_vld_sngpc = historico.get("validacao_transmissao_sngpc", "")
+                    dados_inspecao_atual["validacao_transmissao_sngpc"] = st.text_input("Data da Validação (Retorno Sistema):", value=str(val_vld_sngpc) if val_vld_sngpc and str(val_vld_sngpc) != "None" else "", key="ti_validacao_transmissao_sngpc")
+                else:
+                    dados_inspecao_atual["data__transmissao_sngpc"] = None
+                    dados_inspecao_atual["periodo_transmissao_sngpc"] = None
+                    dados_inspecao_atual["validacao_transmissao_sngpc"] = None
+        else:
+            # Caso o fiscal marque "Não" na pergunta principal, zera de forma forçada todas as colunas do sub-bloco da Portaria 344 para o banco
+            chaves_zerar = [
+                "local_armazenamento_controle_especial", "area_segregada_inutilizados_mc", "dispensa_retinoicos",
+                "data_autorizacao", "n_edital_visa_autorizacao", "sistema_informatizado_autorizacao", "tipo_escrituracao",
+                "dispensa_lista_a", "data_protocolo_rmnra", "obs_lista_a", "dispensa_lista_b2", "data_protocolo_rmnrb2",
+                "obs_lista_b2", "data_envio_bmpo_trimestral", "data_envio_bmpo_anual", "obs_bmpo",
+                "possui_termo_inutilizacao_visa", "data_termo_inutilizacao_visa", "faz_transmissao_sngpc",
+                "data__transmissao_sngpc", "periodo_transmissao_sngpc", "validacao_transmissao_sngpc"
+            ]
+            for chave in chaves_zerar: 
+                dados_inspecao_atual[chave] = None
+            dados_inspecao_atual["medicamentos_controlados_verificados_json"] = []
+            dados_inspecao_atual["antimicrobianos_verificados_json"] = []
+            
+        st.divider()
+
 
     # ==============================================================================
     # TAB 5: ÁREAS FÍSICAS
@@ -1667,7 +2041,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
         st.write("Aguardando inserção dos dados de EPIs, uniformes e capacitações...")
 
     # ==============================================================================
-    # 5. FINALIZAR RELATÓRIO E PERSISTIR NO SUPABASE (VERSÃO DEFINITIVA COM JSONB)
+    # 5. FINALIZAR RELATÓRIO E PERSISTIR NO SUPABASE (VERSÃO ATUALIZADA COM TABS 3 E 4)
     # ==============================================================================
     st.markdown("### 💾 Encerramento da Inspeção")
     
@@ -1696,20 +2070,31 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         dados_inspecao_atual["acompanhantes_inspecao"] = " | ".join(lista_atualizada_salvamento)
 
                     # 🚨 2. CAPTURA FORÇADA E CONVERSÃO DE SEGURANÇA: TERMÔMETROS (TAB 3) 🚨
-                    # Se o fiscal clicar em salvar fora da Tab 3, garante que os dados da memória não sumam
                     if "locais_controle_geladeiras_json" not in dados_inspecao_atual:
                         dados_inspecao_atual["locais_controle_geladeiras_json"] = {
                             "lista_tu": lista_tu_atualizada if 'lista_tu_atualizada' in locals() else st.session_state.get("lista_tu_formulario", []),
                             "lista_t": lista_t_atualizada if 'lista_t_atualizada' in locals() else st.session_state.get("lista_t_formulario", [])
                         }
                     
-                    # Converte o dicionário em string JSON formatada para satisfazer o driver do PostgreSQL/Supabase
                     if isinstance(dados_inspecao_atual["locais_controle_geladeiras_json"], dict):
                         dados_inspecao_atual["locais_controle_geladeiras_json"] = json.dumps(
                             dados_inspecao_atual["locais_controle_geladeiras_json"]
                         )
 
-                    # 🚨 3. GERADOR DINÂMICO DE SQL E ENVIO 🚨
+                    # 🚨 3. CAPTURA FORÇADA E CONVERSÃO DE SEGURANÇA: ESTOQUE CONTROLADOS E ANTIMICROBIANOS (TAB 4) 🚨
+                    if "medicamentos_controlados_verificados_json" not in dados_inspecao_atual:
+                        dados_inspecao_atual["medicamentos_controlados_verificados_json"] = lista_mc_atualizada if 'lista_mc_atualizada' in locals() else st.session_state.get("lista_mc_formulario", [])
+                    
+                    if "antimicrobianos_verificados_json" not in dados_inspecao_atual:
+                        dados_inspecao_atual["antimicroresponsaveis_verificados_json"] = lista_am_atualizada if 'lista_am_atualizada' in locals() else st.session_state.get("lista_am_formulario", [])
+
+                    # Serializa as tabelas da Tab 4 em strings JSON válidas antes do envio ao Supabase
+                    for col_jsonb in ["medicamentos_controlados_verificados_json", "antimicrobianos_verificados_json"]:
+                        if col_jsonb in dados_inspecao_atual:
+                            if isinstance(dados_inspecao_atual[col_jsonb], list):
+                                dados_inspecao_atual[col_jsonb] = json.dumps(dados_inspecao_atual[col_jsonb])
+
+                    # 🚨 4. GERADOR DINÂMICO DE SQL E ENVIO 🚨
                     colunas_presentes = list(dados_inspecao_atual.keys())
                     placeholders = [f":{col}" for col in colunas_presentes]
                     
