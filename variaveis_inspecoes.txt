@@ -136,6 +136,13 @@ data__transmissao_sngpc
 periodo_transmissao_sngpc
 validacao_transmissao_sngpc
 
+
+
+
+
+
+
+
 Vamos fazer a Aba de Comercialização:
 A embalagem e rotulagem dos produtos comercializados verificados estão conforme a legislação vigente? resposta padrão, variavel: embalagem_produtos
 Se NC: incluir a lista de produtos não conformes encontrados - lista_produtos_nc
@@ -200,93 +207,99 @@ Se C ou NC, abrir campos:
 
 
 
+Vamos para a seção de área física.
+Para ficar mais fácila navegação e visualização, adicionar sub-abas para cada área adicionada.
+Tópicos para marcar em "Adicionar área": Recebimento, Estoque, Sala de Serviços, DML, Sanitário Funcionários, Sanitário Clientes, Copa, ADM.
+Marca as bolinhas e quando forem marcadas, aparece a sub-aba embaixo, uma do lado da outra, mas a questão "Adicionar área" e as bolinhas para marcar ficam sempre aparecendo em cima das sub-abas.
+Todas as "flags" "possui_xxx" ficam como "não" inicialmente e vai marcando "sim" quando forem adicionadas as áreas, gravar a variavel como "não" se a bolinha for desmarcada (possui_recebimento, possui_estoque, possui_sala_servicos, possui_dml, possui_sanitarios_funcionarios, possui_sanitarios_clientes, possui_copa, possui_adm)
+
+Marcar com respostas padrão os itens.
+
+Sub-aba de Recebimento:
+- O recebimento possui condições adequadas de estrutura? (condicoes_estruturais_recebimento)
+- O recebimento possui condições higienico-sanitárias adequadas? (condicoes_higienicas_recebimento)
+- O estabelecimento realiza o devido controle das mercadorias recebidas, com registros? (controle_recebimento)
+
+Sub-aba de Estoque:
+- O estoque possui condições adequadas de estrutura? (condicoes_estruturais_estoque)
+- O piso é liso, lavável e impermeável? (piso_estoque)
+- As paredes são lisas, laváveis e impermeáveis? (parede_estoque)
+- O teto é liso, lavável e impermeável? (teto_estoque)
+- O estoque possui condições higienico-sanitárias adequadas? (condicoes_higienicas_estoque)
+- Há devida proteção contra entrada de pragas e insetos? (protecao_pragas_estoque)
+- A ventilação é adequada? (ventilacao_estoque)
+- A iluminação é adequada? (iluminacao_estoque)
+- As estruturas de armazenamento são afastadas de piso, parede e teto? (afastamento_estrutura_estoque)
+- Há área destinada para produtos não conformes, devidamente identificada? (produtos_nao_conformes_estoque)
+- O estabelecimento realiza a coleta de medicamentos a serem descartados pela comunidade? (coleta_medicamentos_clientes_estoque)
+
+Sub-aba de Sala de Serviços:
+- Existe local específico para a prestação de serviços farmacêuticos, diverso à dispensação e devidamente isolado? (separacao_sala_servicos)
+- A sala de serviços possui condições adequadas de estrutura? (condicoes_estruturais_sala_servicos)
+- O piso é liso, lavável e impermeável? (piso_sala_servicos)
+- As paredes são lisas, laváveis e impermeáveis? (parede_sala_servicos)
+- O teto é liso, lavável e impermeável? (teto_sala_servicos)
+- O estoque possui condições higienico-sanitárias adequadas? (condicoes_higienicas_sala_servicos)
+- Há devida proteção contra entrada de pragas e insetos? (protecao_pragas_sala_servicos)
+- A ventilação é adequada? (ventilacao_sala_servicos)
+- A iluminação é adequada? (iluminacao_sala_servicos)
+
+Sobre a higiene das mãos:
+- É provido de lavatório com água corrente? (pia_sala_servicos)
+- Possui sabonete líquido? (sabonete_sala_servicos)
+- Possui toalha de uso individual e descartável? (papel_toalha_sala_servicos)
+- Possui lixeira comum com tampa e pedal? (lixeira_comum_sala_servicos)
+- Possui álcool para a desinfecção? (alcool_sala_servicos)
+
+Resíduos gerados:
+- Possui recipiente adequado para o descarte de perfurocortantes? (caixa_perfurocortante_sala_servicos)
+- Possui coletor para resíduos infectantes, devidamente identificado? (lixeira_infectantes_sala_servicos)
+
+- Possui conjunto de materiais de primeiros socorros identificado e de fácil acesso? (primeiros_socorros_sala_servicos)
+- Possui Lista de Estabelecimento de Saúde próximos? (lista_estab_saude_sala_servicos)
+- Possui Declaração de Serviços prestados? (declaracao_serviços_sala_servicos)
+
+Sub-aba de DML (Depósito de Material de Limpeza):
+- Possui condições adequadas de estrutura? (condicoes_estruturais_dml)
+- Possui condições higienico-sanitárias adequadas? (condicoes_higienicas_dml)
+- Os materiais de limpeza são regularizados na ANVISA? (produto_regularizados_dml)
+
+Sub-aba Sanitários Funcionários:
+- Possui condições adequadas de estrutura? (condicoes_estruturais_sanitarios_funcionarios)
+- Possui condições higienico-sanitárias adequadas? (condicoes_higienicas_sanitarios_funcionarios)
+- É provido de lavatório com água corrente? (lavatorio_sanitarios_funcionarios)
+- Possui sabonete líquido? (sabonete_sanitarios_funcionarios)
+- Possui toalha de uso individual e descartável? (papel_toalha_sanitarios_funcionarios)
+- Possui lixeira com tampa e pedal? (lixeira_sanitarios_funcionarios)
+- Possui local destinado à guarda de pertences dos funcionários? (local_pertences_sanitarios_funcionarios)
+
+Sub-aba Sanitários Clientes:
+- Possui condições adequadas de estrutura? (condicoes_estruturais_sanitarios_clientes)
+- Possui condições higienico-sanitárias adequadas? (condicoes_higienicas_sanitarios_clientes)
+- É provido de lavatório com água corrente? (lavatorio_sanitarios_clientes)
+- Possui sabonete líquido? (sabonete_sanitarios_clientes)
+- Possui toalha de uso individual e descartável? (papel_toalha_sanitarios_clientes)
+- Possui lixeira com tampa e pedal? (lixeira_sanitarios_clientes)
+
+Sub-aba copa:
+- Possui local separado e isolado para essa finalidade? (separacao_copa)
+- Possui condições adequadas de estrutura? (condicoes_estruturais_copa)
+- Possui condições higienico-sanitárias adequadas? (condicoes_higienicas_copa)
+
+Sub-aba ADM:
+- A área administrativa possui condições adequadas de estrutura? (condicoes_estruturais_adm)
+- Possui condições higienico-sanitárias adequadas? (condicoes_higienicas_adm)
+- Há devida proteção contra entrada de pragas e insetos? (protecao_pragas_adm)
+- A ventilação é adequada? (ventilacao_adm)
+- A iluminação é adequada? (iluminacao_adm)
 
 
 
 
 
-
-
-
-
-
-
-(area fisica)
-possui_adm
-condicoes_estruturais_adm
-condicoes_higienicas_adm
-protecao_pragas_adm
-ventilacao_adm
-iluminacao_adm
-
-possui_recebimento
-condicoes_estruturais_recebimento
-condicoes_higienicas_recebimento
-controle_recebimento
-
-possui_estoque
-condicoes_estruturais_estoque
-piso_estoque
-parede_estoque
-teto_estoque
-condicoes_higienicas_estoque
-protecao_pragas_estoque
-ventilacao_estoque
-iluminacao_estoque
-afastamento_estrutura_estoque
-produtos_nao_conformes_estoque
-coleta_medicamentos_clientes_estoque
-
-possui_dml
-condicoes_estruturais_dml
-condicoes_higienicas_dml
-produto_regularizados_dml
-
-possui_sanitarios_clientes
-condicoes_estruturais_sanitarios_clientes
-condicoes_higienicas_sanitarios_clientes
-lavatorio_sanitarios_clientes
-papel_toalha_sanitarios_clientes
-sabonete_sanitarios_clientes
-lixeira_sanitarios_clientes
-
-possui_sanitarios_funcionarios
-condicoes_estruturais_sanitarios_funcionarios
-condicoes_higienicas_sanitarios_funcionarios
-lavatorio_sanitarios_funcionarios
-papel_toalha_sanitarios_funcionarios
-sabonete_sanitarios_funcionarios
-lixeira_sanitarios_funcionarios
-local_pertences_sanitarios_funcionarios
-
-possui_copa
-separacao_copa
-condicoes_estruturais_copa
-condicoes_higienicas_copa
-
-possui_sala_servicos
 servicos_realizados_sala_servicos
 procedimentos_escritos_sala_servicos
-separacao_sala_servicos
-condicoes_estruturais_sala_servicos
-piso_sala_servicos
-parede_sala_servicos
-teto_sala_servicos
-condicoes_higienicas_sala_servicos
-protecao_pragas_sala_servicos
-ventilacao_sala_servicos
-iluminacao_sala_servicos
-pia_sala_servicos
-sabonete_sala_servicos
-papel_toalha_sala_servicos
-caixa_perfurocortante_sala_servicos
-lixeira_comum_sala_servicos
-lixeira_infectantes_sala_servicos
-alcool_sala_servicos
-primeiros_socorros_sala_servicos
-lista_estab_saude_sala_servicos
 registro_limpeza_sala_servicos
-declaracao_serviços_sala_servicos
 
 pressao_arterial
 marca_modelo_pressao_arterial

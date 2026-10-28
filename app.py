@@ -40,232 +40,6 @@ try:
 except Exception as e_conexao:
     st.sidebar.error(f"⚠️ Falha na conexão com o banco PostgreSQL: {e_conexao}")
 
-# --- CRIAÇÃO AUTOMÁTICA DA TABELA NO SUPABASE COM TODOS OS CAMPOS ---
-if conn_nuvem is not None:
-    try:
-        with conn_nuvem.session as s:
-            s.execute(text("""
-            CREATE TABLE IF NOT EXISTS inspecoes_db (
-                -- Identificação e Dados Cadastrais
-                id_inspecao TEXT PRIMARY KEY,
-                cnpj TEXT,
-                web TEXT,
-                data_procedimento DATE,
-                acompanhantes_inspecao TEXT,
-                farmaceutico_presente TEXT,
-
-                -- (documentacao) - AFE
-                possui_afe TEXT,
-                numero_afe TEXT,
-                data_afe DATE,	
-                status_afe TEXT,
-
-                -- (documentacao) - CRT
-                possui_crt TEXT,
-                numero_crt TEXT,
-                data_crt DATE,
-                status_crt TEXT,
-                rt_crt TEXT,
-
-                -- Manuais
-                possui_mbpf TEXT,
-                possui_pops TEXT,
-
-                -- Controle de Pragas
-                possui_pragas TEXT,
-                empresa_pragas TEXT,
-                cnpj_pragas TEXT,
-                data_pragas DATE,
-                validade_pragas DATE,
-                val_alvara_pragas DATE,
-
-                -- Reservatório de Água
-                possui_limpeza_reserv_agua TEXT,
-                empresa_reserv_agua TEXT,
-                cnpj_reserv_agua TEXT,
-                data_reserv_agua DATE,
-
-                -- Vistoria do Corpo de Bombeiros
-                possui_vistoria_bombeiro TEXT,
-                tipo_vistoria_bombeiro TEXT,
-                num_vistoria_bombeiro TEXT,
-                data_vistoria_bombeiro DATE,
-                validade_vistoria_bombeiro DATE,
-
-                -- PGRSS
-                possui_pgrss TEXT,
-                data_pgrss DATE,
-                comp_coleta_pgrss TEXT,
-                data_coleta_residuo DATE,
-
-                -- PCMSO
-                possui_pcmso TEXT,
-                emissao_pcmso DATE,
-                validade_pcmso DATE,
-                empresa_pcmso TEXT,
-                medico_pcmso TEXT,
-
-                -- PGR
-                possui_pgr TEXT,
-                emissao_pgr DATE,
-                validade_pgr DATE,
-                responsavel_pgr TEXT,
-
-                -- ASO
-                possui_aso TEXT,
-                empresa_aso TEXT,
-                numero_aso TEXT,
-
-                -- Lista Dinâmica: Locais de controle e Geladeiras (Salvo como Lista JSON)
-                locais_controle_geladeiras_json JSONB,
-
-                -- Comercialização de Produtos
-                embalagem_produtos TEXT,
-                permitidos_venda_produtos TEXT,
-
-                -- Medicamentos Sujeitos a Controle Especial
-                dispensa_controle_especial TEXT,
-                local_armazenamento_controle_especial TEXT,
-                area_segregada_inutilizados_mc TEXT,
-                dispensa_retinoicos TEXT,
-                data_autorizacao DATE,
-                n_edital_visa_autorizacao TEXT,
-                sistema_informatizado_autorizacao TEXT,
-                tipo_escrituracao TEXT,
-                dispensa_lista_a TEXT,
-                data_protocolo_rmnra DATE,
-                dispensa_lista_b2 TEXT,
-                data_protocolo_rmnrb2 DATE,
-                data_envio_bmpo_trimestral DATE,
-                data_envio_bmpo_anual DATE,
-
-                -- Listas Dinâmicas: Medicamentos e Antimicrobianos Verificados (Listas JSON)
-                medicamentos_controlados_verificados_json JSONB,
-                antimicrobianos_verificados_json JSONB,
-
-                -- Inutilização e SNGPC
-                possui_termo_inutilizacao_visa TEXT,
-                data_termo_inutilizacao_visa DATE,
-                faz_transmissao_sngpc TEXT,
-                data__transmissao_sngpc DATE,
-                periodo_transmissao_sngpc TEXT,
-                validacao_transmissao_sngpc TEXT,
-
-                -- Área Física: Administração
-                possui_adm TEXT,
-                condicoes_estruturais_adm TEXT,
-                condicoes_higienicas_adm TEXT,
-                protecao_pragas_adm TEXT,
-                ventilacao_adm TEXT,
-                iluminacao_adm TEXT,
-
-                -- Área Física: Recebimento
-                possui_recebimento TEXT,
-                condicoes_estruturais_recebimento TEXT,
-                condicoes_higienicas_recebimento TEXT,
-                controle_recebimento TEXT,
-
-                -- Área Física: Estoque
-                possui_estoque TEXT,
-                condicoes_estruturais_estoque TEXT,
-                piso_estoque TEXT,
-                parede_estoque TEXT,
-                teto_estoque TEXT,
-                condicoes_higienicas_estoque TEXT,
-                protecao_pragas_estoque TEXT,
-                ventilacao_estoque TEXT,
-                iluminacao_estoque TEXT,
-                afastamento_structure_estoque TEXT,
-                produtos_nao_conformes_estoque TEXT,
-                coleta_medicamentos_clientes_estoque TEXT,
-
-                -- Área Física: DML
-                possui_dml TEXT,
-                condicoes_estruturais_dml TEXT,
-                condicoes_higienicas_dml TEXT,
-                produto_regularizados_dml TEXT,
-
-                -- Área Física: Sanitários Clientes
-                possui_sanitarios_clientes TEXT,
-                condicoes_estruturais_sanitarios_clientes TEXT,
-                condicoes_higienicas_sanitarios_clientes TEXT,
-                lavatorio_sanitarios_clientes TEXT,
-                papel_toalha_sanitarios_clientes TEXT,
-                sabonete_sanitarios_clientes TEXT,
-                lixeira_sanitarios_clientes TEXT,
-
-                -- Área Física: Sanitários Funcionários
-                possui_sanitarios_funcionarios TEXT,
-                condicoes_estruturais_sanitarios_funcionarios TEXT,
-                condicoes_higienicas_sanitarios_funcionarios TEXT,
-                lavatorio_sanitarios_funcionarios TEXT,
-                papel_toalha_sanitarios_funcionarios TEXT,
-                sabonete_sanitarios_funcionarios TEXT,
-                lixeira_sanitarios_funcionarios TEXT,
-                local_pertences_sanitarios_funcionarios TEXT,
-
-                -- Área Física: Copa
-                possui_copa TEXT,
-                separacao_copa TEXT,
-                condicoes_estruturais_copa TEXT,
-                condicoes_higienicas_copa TEXT,
-
-                -- Área Física: Sala de Serviços
-                possui_sala_servicos TEXT,
-                servicos_realizados_sala_servicos TEXT,
-                procedimentos_escritos_sala_servicos TEXT,
-                separacao_sala_servicos TEXT,
-                condicoes_estruturais_sala_servicos TEXT,
-                piso_sala_servicos TEXT,
-                parede_sala_servicos TEXT,
-                teto_sala_servicos TEXT,
-                condicoes_higienicas_sala_servicos TEXT,
-                protecao_pragas_sala_servicos TEXT,
-                ventilacao_sala_servicos TEXT,
-                iluminacao_sala_servicos TEXT,
-                pia_sala_servicos TEXT,
-                sabonete_sala_servicos TEXT,
-                papel_toalha_sala_servicos TEXT,
-                caixa_perfurocortante_sala_servicos TEXT,
-                lixeira_comum_sala_servicos TEXT,
-                lixeira_infectantes_sala_servicos TEXT,
-                alcool_sala_servicos TEXT,
-                primeiros_socorros_sala_servicos TEXT,
-                lista_estab_saude_sala_servicos TEXT,
-                registro_limpeza_sala_servicos TEXT,
-                declaracao_serviços_sala_servicos TEXT,
-
-                -- Equipamento: Pressão Arterial
-                pressao_arterial TEXT,
-                marca_modelo_pressao_arterial TEXT,
-                possui_calibracao_pressao_arterial TEXT,
-                nota_aquisicao_pressao_arterial TEXT,
-                data_aquisicao_pressao_arterial DATE,
-                empresa_aquisicao_pressao_arterial TEXT,
-                certificado_calibracao_pressao_arterial TEXT,
-                empresa_calibracao_pressao_arterial TEXT,
-                data_calibracao_pressao_arterial DATE,
-                validade_calibracao_pressao_arterial DATE,
-
-                -- Equipamento: Temperatura Corporal
-                t_corporal TEXT,
-                marca_modelo_t_corporal TEXT,
-
-                -- Equipamento: Perfuração de Orelha
-                perfuracao_orelha TEXT,
-                marca_modelo_perfuracao_orelha TEXT,
-                lote_perfuracao_orelha TEXT,
-
-                -- Recursos Humanos / Funcionários
-                numero_funcionarios INTEGER,
-                uniformes_funcionarios TEXT,
-                epis_serviços_funcionarios TEXT,
-                capacitacao_funcionarios TEXT
-            );
-            """))
-            s.commit()
-    except Exception as e:
-        st.sidebar.error(f"Erro crítico ao estruturar a tabela no Supabase: {e}")
 
 # --- CONTROLADORES DE TELA E HISTÓRICO DE RESPOSTAS ---
 if "tela" not in st.session_state:
@@ -1672,7 +1446,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                 dados_inspecao_atual["lista_produtos_nc"] = st.text_area(
                     "Lista de produtos não conformes encontrados:", 
                     value=str(val_lp_nc) if val_lp_nc and str(val_lp_nc) != "None" else "",
-                    key="ta_lista_produtos_nc", placeholder="Ex: Produto X - Lote Y com rasura na rotulagem..."
+                    key="ta_lista_produtos_nc"
                 )
             else:
                 dados_inspecao_atual["lista_produtos_nc"] = None
@@ -1688,7 +1462,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                 dados_inspecao_atual["lista_produtos_np"] = st.text_area(
                     "Lista de produtos não permitidos encontrados:", 
                     value=str(val_lp_np) if val_lp_np and str(val_lp_np) != "None" else "",
-                    key="ta_lista_produtos_np", placeholder="Ex: Venda de produtos alheios ao comércio farmacêutico (Ex: Conveniência inadequada)..."
+                    key="ta_lista_produtos_np"
                 )
             else:
                 dados_inspecao_atual["lista_produtos_np"] = None
@@ -1828,10 +1602,10 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
 
             st.divider()
 
-            # ==============================================================================
-            # MOTOR DE CONFERÊNCIA DE ESTOQUE (MEDICAMENTOS CONTROLADOS E ANTIMICROBIANOS)
-            # ==============================================================================
-            st.markdown("### 📋 Conferência Dinâmica de Estoque (Lotes e Sistemas)")
+            
+            # --- MOTOR DE CONFERÊNCIA DE ESTOQUE (MEDICAMENTOS CONTROLADOS E ANTIMICROBIANOS)
+            
+            st.markdown("### 📋 Conferência de Estoque")
             
             # Recupera as listas estruturadas salvas nas colunas JSONB correspondentes do Supabase
             hist_mc = historico.get("medicamentos_controlados_verificados_json", [])
@@ -1864,7 +1638,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         lote_mc = st.text_input("Lote:", value=item_mc.get("lote_mc", ""), key=f"mc_lo_{idx}")
                     with c5:
                         v_v_mc = item_mc.get("validade_mc", "")
-                        val_mc = st.text_input("Validade (MM/AAAA ou data):", value=v_v_mc, key=f"mc_va_{idx}")
+                        val_mc = st.text_input("Validade:", value=v_v_mc, key=f"mc_va_{idx}")
                     with c6: 
                         q_fis_mc = st.text_input("Qtd (Estoque Físico):", value=item_mc.get("quantidade_fisico_mc", ""), key=f"mc_qf_{idx}")
                     with c7: 
@@ -1898,7 +1672,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
             st.divider()
            
             # --- LOOP B: ANTIMICROBIANOS ---
-            st.markdown("##### 🧫 Antimicrobianos Verificados (RDC 20/11)")
+            st.markdown("##### 🧫 Antimicrobianos Verificados")
             lista_am_atualizada = []
             
             for idx, item_am in enumerate(st.session_state["lista_am_formulario"]):
@@ -1916,7 +1690,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         lote_am = st.text_input("Lote:", value=item_am.get("lote_am", ""), key=f"am_lo_{idx}")
                     with a5:
                         v_v_am = item_am.get("validade_am", "")
-                        val_am = st.text_input("Validade (MM/AAAA ou data):", value=v_v_am, key=f"am_va_{idx}")
+                        val_am = st.text_input("Validade:", value=v_v_am, key=f"am_va_{idx}")
                     with a6: 
                         q_fis_am = st.text_input("Qtd (Estoque Físico):", value=item_am.get("quantidade_fisico_am", ""), key=f"am_qf_{idx}")
                     with a7: 
@@ -2021,12 +1795,545 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
             
         st.divider()
 
-
     # ==============================================================================
-    # TAB 5: ÁREAS FÍSICAS
+    # TAB 5: ÁREAS FÍSICAS (SUB-ABAS DINÂMICAS)
     # ==============================================================================
     with tab_areas:
-        st.write("Aguardando inserção das avaliações de estrutura física de cada setor...")
+        st.markdown("## 🏢 Seção: Avaliação da Área Física")
+        
+        # --- DICIONÁRIO DE MAPEAMENTO DAS ÁREAS ---
+        # Conecta o nome amigável da tela com a coluna de flag "possui_xxx" do Supabase
+        mapeamento_areas_config = {
+            "Recebimento": "possui_recebimento",
+            "Estoque": "possui_estoque",
+            "Sala de Serviços": "possui_sala_servicos",
+            "DML": "possui_dml",
+            "Sanitário Funcionários": "possui_sanitarios_funcionarios",
+            "Sanitário Clientes": "possui_sanitarios_clientes",
+            "Copa": "possui_copa",
+            "ADM": "possui_adm"
+        }
+        
+        # --- RECUPERAÇÃO DO HISTÓRICO DE ÁREAS ATIVAS ---
+        # Analisa a última inspeção e descobre quais áreas estavam marcadas como "Sim"
+        areas_ativas_historico = []
+        for nome_amigavel, coluna_flag in mapeamento_areas_config.items():
+            if historico.get(coluna_flag, "Não") == "Sim":
+                areas_ativas_historico.append(nome_amigavel)
+                
+        st.markdown("**Selecione abaixo quais setores físicos estão presentes e serão avaliados nesta inspeção:**")
+        
+        # O multiselect atua como as bolinhas de marcação fixas no topo da página
+        areas_selecionadas = st.multiselect(
+            "Adicionar área:",
+            options=list(mapeamento_areas_config.keys()),
+            default=areas_ativas_historico,
+            key="ms_areas_fisicas_selecionadas"
+        )
+        
+        # --- ATRIBUIÇÃO AUTOMÁTICA DAS FLAGS DE PRESENÇA (SIM / NÃO) ---
+        for nome_amigavel, coluna_flag in mapeamento_areas_config.items():
+            if nome_amigavel in areas_selecionadas:
+                dados_inspecao_atual[coluna_flag] = "Sim"
+            else:
+                dados_inspecao_atual[coluna_flag] = "Não"
+
+        st.divider()
+
+        # --- MOTOR DE GERAÇÃO DAS SUB-ABAS DINÂMICAS ---
+        if not areas_selecionadas:
+            st.info("💡 Nenhuma área física selecionada. Marque os setores acima para abrir os questionários estruturais.")
+        else:
+            # Cria os objetos das sub-abas no Streamlit baseado apenas no que o fiscal marcou
+            sub_tabs = st.tabs(areas_selecionadas)
+            
+            # Mapeia qual objeto de sub-aba pertence a cada nome para renderizarmos na ordem correta
+            map_abas_geradas = {nome: sub_tabs[i] for i, nome in enumerate(areas_selecionadas)}
+            
+            # --------------------------------------------------------------------------
+            # SUB-ABA: RECEBIMENTO
+            # --------------------------------------------------------------------------
+            if "Recebimento" in map_abas_geradas:
+                with map_abas_geradas["Recebimento"]:
+                    st.markdown("### 📥 Setor de Recebimento de Mercadorias")
+                    
+                    st.markdown("**O recebimento possui condições adequadas de estrutura?**")
+                    val_est_rec = historico.get("condicoes_estruturais_recebimento", "Não avaliado")
+                    dados_inspecao_atual["condicoes_estruturais_recebimento"] = st.radio(
+                        "Estrutura Recebimento:", opcoes_status, index=mapeamento_status.get(val_est_rec, 0), key="rad_condicoes_estruturais_recebimento", horizontal=True
+                    )
+                    st.write("")
+                    
+                    st.markdown("**O recebimento possui condições higiênico-sanitárias adequadas?**")
+                    val_hig_rec = historico.get("condicoes_higienicas_recebimento", "Não avaliado")
+                    dados_inspecao_atual["condicoes_higienicas_recebimento"] = st.radio(
+                        "Higiene Recebimento:", opcoes_status, index=mapeamento_status.get(val_hig_rec, 0), key="rad_condicoes_higienicas_recebimento", horizontal=True
+                    )
+                    st.write("")
+                    
+                    st.markdown("**O estabelecimento realiza o devido controle das mercadorias recebidas, com registros?**")
+                    val_ctrl_rec = historico.get("controle_recebimento", "Não avaliado")
+                    dados_inspecao_atual["controle_recebimento"] = st.radio(
+                        "Controle Recebimento:", opcoes_status, index=mapeamento_status.get(val_ctrl_rec, 0), key="rad_controle_recebimento", horizontal=True
+                    )
+            
+            # --------------------------------------------------------------------------
+            # SUB-ABA: ESTOQUE
+            # --------------------------------------------------------------------------
+            if "Estoque" in map_abas_geradas:
+                with map_abas_geradas["Estoque"]:
+                    st.markdown("### 📦 Setor de Armazenamento / Estoque de Produtos")
+                    
+                    # Organização em duas colunas para aproveitar o espaço vertical
+                    col_est1, col_est2 = st.columns(2)
+                    
+                    with col_est1:
+                        st.markdown("**O estoque possui condições adequadas de estrutura?**")
+                        val_est_est = historico.get("condicoes_estruturais_estoque", "Não avaliado")
+                        dados_inspecao_atual["condicoes_estruturais_estoque"] = st.radio(
+                            "Estrutura Estoque:", opcoes_status, index=mapeamento_status.get(val_est_est, 0), key="rad_condicoes_estruturais_estoque", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**O piso é liso, lavável e impermeável?**")
+                        val_piso = historico.get("piso_estoque", "Não avaliado")
+                        dados_inspecao_atual["piso_estoque"] = st.radio(
+                            "Piso Estoque:", opcoes_status, index=mapeamento_status.get(val_piso, 0), key="rad_piso_estoque", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**As paredes são lisas, laváveis e impermeáveis?**")
+                        val_parede = historico.get("parede_estoque", "Não avaliado")
+                        dados_inspecao_atual["parede_estoque"] = st.radio(
+                            "Parede Estoque:", opcoes_status, index=mapeamento_status.get(val_parede, 0), key="rad_parede_estoque", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**O teto é liso, lavável e impermeável?**")
+                        val_teto = historico.get("teto_estoque", "Não avaliado")
+                        dados_inspecao_atual["teto_estoque"] = st.radio(
+                            "Teto Estoque:", opcoes_status, index=mapeamento_status.get(val_teto, 0), key="rad_teto_estoque", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**O estoque possui condições higiênico-sanitárias adequadas?**")
+                        val_hig_est = historico.get("condicoes_higienicas_estoque", "Não avaliado")
+                        dados_inspecao_atual["condicoes_higienicas_estoque"] = st.radio(
+                            "Higiene Estoque:", opcoes_status, index=mapeamento_status.get(val_hig_est, 0), key="rad_condicoes_higienicas_estoque", horizontal=True
+                        )
+
+                    with col_est2:
+                        st.markdown("**Há devida proteção contra entrada de pragas e insetos?**")
+                        val_prag_est = historico.get("protecao_pragas_estoque", "Não avaliado")
+                        dados_inspecao_atual["protecao_pragas_estoque"] = st.radio(
+                            "Pragas Estoque:", opcoes_status, index=mapeamento_status.get(val_prag_est, 0), key="rad_protecao_pragas_estoque", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**A ventilação é adequada?**")
+                        val_vent_est = historico.get("ventilacao_estoque", "Não avaliado")
+                        dados_inspecao_atual["ventilacao_estoque"] = st.radio(
+                            "Ventilação Estoque:", opcoes_status, index=mapeamento_status.get(val_vent_est, 0), key="rad_ventilacao_estoque", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**A iluminação é adequada?**")
+                        val_ilum_est = historico.get("iluminacao_estoque", "Não avaliado")
+                        dados_inspecao_atual["iluminacao_estoque"] = st.radio(
+                            "Iluminação Estoque:", opcoes_status, index=mapeamento_status.get(val_ilum_est, 0), key="rad_iluminacao_estoque", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**As estruturas de armazenamento são afastadas de piso, parede e teto?**")
+                        val_afast = historico.get("afastamento_estrutura_estoque", "Não avaliado")
+                        dados_inspecao_atual["afastamento_estrutura_estoque"] = st.radio(
+                            "Afastamento Estrutura:", opcoes_status, index=mapeamento_status.get(val_afast, 0), key="rad_afastamento_estrutura_estoque", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Há área destinada para produtos não conformes, devidamente identificada?**")
+                        val_prod_nc = historico.get("produtos_nao_conformes_estoque", "Não avaliado")
+                        dados_inspecao_atual["produtos_nao_conformes_estoque"] = st.radio(
+                            "Produtos NC Estoque:", opcoes_status, index=mapeamento_status.get(val_prod_nc, 0), key="rad_produtos_nao_conformes_estoque", horizontal=True
+                        )
+                    
+                    st.write("")
+                    st.markdown("**O estabelecimento realiza a coleta de medicamentos a serem descartados pela comunidade?**")
+                    val_coleta_com = historico.get("coleta_medicamentos_clientes_estoque", "Não avaliado")
+                    dados_inspecao_atual["coleta_medicamentos_clientes_estoque"] = st.radio(
+                        "Coleta Descarte Comunidade:", opcoes_status, index=mapeamento_status.get(val_coleta_com, 0), key="rad_coleta_medicamentos_clientes_estoque", horizontal=True
+                    )
+            # --------------------------------------------------------------------------
+            # SUB-ABA: SALA DE SERVIÇOS
+            # --------------------------------------------------------------------------
+            if "Sala de Serviços" in map_abas_geradas:
+                with map_abas_geradas["Sala de Serviços"]:
+                    st.markdown("### 🩺 Sala de Serviços Farmacêuticos")
+                    
+                    # --- BLOCO 1: ESTRUTURA GERAL ---
+                    st.markdown("#### 🧱 Infraestrutura e Condições Ambientais")
+                    col_ss_est1, col_ss_est2 = st.columns(2)
+                    
+                    with col_ss_est1:
+                        st.markdown("**Existe local específico para a prestação de serviços farmacêuticos, diverso à dispensação e devidamente isolado?**")
+                        val_sep_ss = historico.get("separacao_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["separacao_sala_servicos"] = st.radio(
+                            "Isolamento da Sala:", opcoes_status, index=mapeamento_status.get(val_sep_ss, 0), key="rad_separacao_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**A sala de serviços possui condições adequadas de estrutura?**")
+                        val_est_ss = historico.get("condicoes_estruturais_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["condicoes_estruturais_sala_servicos"] = st.radio(
+                            "Estrutura da Sala:", opcoes_status, index=mapeamento_status.get(val_est_ss, 0), key="rad_condicoes_estruturais_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**O piso é liso, lavável e impermeável?**")
+                        val_piso_ss = historico.get("piso_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["piso_sala_servicos"] = st.radio(
+                            "Piso Sala Serviços:", opcoes_status, index=mapeamento_status.get(val_piso_ss, 0), key="rad_piso_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**As paredes são lisas, laváveis e impermeáveis?**")
+                        val_parede_ss = historico.get("parede_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["parede_sala_servicos"] = st.radio(
+                            "Parede Sala Serviços:", opcoes_status, index=mapeamento_status.get(val_parede_ss, 0), key="rad_parede_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**O teto é liso, lavável e impermeável?**")
+                        val_teto_ss = historico.get("teto_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["teto_sala_servicos"] = st.radio(
+                            "Teto Sala Serviços:", opcoes_status, index=mapeamento_status.get(val_teto_ss, 0), key="rad_teto_sala_servicos", horizontal=True
+                        )
+
+                    with col_ss_est2:
+                        st.markdown("**A sala possui condições higiênico-sanitárias adequadas?**")
+                        val_hig_ss = historico.get("condicoes_higienicas_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["condicoes_higienicas_sala_servicos"] = st.radio(
+                            "Higiene Sala Serviços:", opcoes_status, index=mapeamento_status.get(val_hig_ss, 0), key="rad_condicoes_higienicas_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Há devida proteção contra entrada de pragas e insetos?**")
+                        val_prag_ss = historico.get("protecao_pragas_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["protecao_pragas_sala_servicos"] = st.radio(
+                            "Pragas Sala Serviços:", opcoes_status, index=mapeamento_status.get(val_prag_ss, 0), key="rad_protecao_pragas_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**A ventilação é adequada?**")
+                        val_vent_ss = historico.get("ventilacao_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["ventilacao_sala_servicos"] = st.radio(
+                            "Ventilação Sala Serviços:", opcoes_status, index=mapeamento_status.get(val_vent_ss, 0), key="rad_ventilacao_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**A iluminação é adequada?**")
+                        val_ilum_ss = historico.get("iluminacao_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["iluminacao_sala_servicos"] = st.radio(
+                            "Iluminação Sala Serviços:", opcoes_status, index=mapeamento_status.get(val_ilum_ss, 0), key="rad_iluminacao_sala_servicos", horizontal=True
+                        )
+
+                    st.divider()
+
+                    # --- BLOCO 2: HIGIENE DAS MÃOS ---
+                    st.markdown("#### 🧼 Higiene das Mãos e Sanificação")
+                    col_ss_hig1, col_ss_hig2 = st.columns(2)
+                    
+                    with col_ss_hig1:
+                        st.markdown("**É provido de lavatório com água corrente?**")
+                        val_pia_ss = historico.get("pia_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["pia_sala_servicos"] = st.radio(
+                            "Lavatório com Água:", opcoes_status, index=mapeamento_status.get(val_pia_ss, 0), key="rad_pia_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui sabonete líquido?**")
+                        val_sab_ss = historico.get("sabonete_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["sabonete_sala_servicos"] = st.radio(
+                            "Sabonete Líquido:", opcoes_status, index=mapeamento_status.get(val_sab_ss, 0), key="rad_sabonete_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui toalha de uso individual e descartável?**")
+                        val_papel_ss = historico.get("papel_toalha_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["papel_toalha_sala_servicos"] = st.radio(
+                            "Toalha Descartável:", opcoes_status, index=mapeamento_status.get(val_papel_ss, 0), key="rad_papel_toalha_sala_servicos", horizontal=True
+                        )
+
+                    with col_ss_hig2:
+                        st.markdown("**Possui lixeira comum com tampa e pedal?**")
+                        val_lix_com = historico.get("lixeira_comum_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["lixeira_comum_sala_servicos"] = st.radio(
+                            "Lixeira Comum:", opcoes_status, index=mapeamento_status.get(val_lix_com, 0), key="rad_lixeira_comum_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui álcool para a desinfecção?**")
+                        val_alc_ss = historico.get("alcool_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["alcool_sala_servicos"] = st.radio(
+                            "Álcool Desinfecção:", opcoes_status, index=mapeamento_status.get(val_alc_ss, 0), key="rad_alcool_sala_servicos", horizontal=True
+                        )
+
+                    st.divider()
+
+                    # --- BLOCO 3: RESÍDUOS GERADOS ---
+                    st.markdown("#### ☣️ Gerenciamento de Resíduos de Saúde")
+                    col_ss_res1, col_ss_res2 = st.columns(2)
+                    
+                    with col_ss_res1:
+                        st.markdown("**Possui recipiente adequado para o descarte de perfurocortantes?**")
+                        val_perf_ss = historico.get("caixa_perfurocortante_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["caixa_perfurocortante_sala_servicos"] = st.radio(
+                            "Descarte Perfurocortantes:", opcoes_status, index=mapeamento_status.get(val_perf_ss, 0), key="rad_caixa_perfurocortante_sala_servicos", horizontal=True
+                        )
+
+                    with col_ss_res2:
+                        st.markdown("**Possui coletor para resíduos infectantes, devidamente identificado?**")
+                        val_inf_ss = historico.get("lixeira_infectantes_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["lixeira_infectantes_sala_servicos"] = st.radio(
+                            "Coletor Infectantes:", opcoes_status, index=mapeamento_status.get(val_inf_ss, 0), key="rad_lixeira_infectantes_sala_servicos", horizontal=True
+                        )
+
+                    st.divider()
+
+                    # --- BLOCO 4: MATERIAIS E DOCUMENTOS ---
+                    st.markdown("#### 📄 Suporte, Segurança e Documentação")
+                    col_ss_doc1, col_ss_doc2 = st.columns(2)
+                    
+                    with col_ss_doc1:
+                        st.markdown("**Possui conjunto de materiais de primeiros socorros identificado e de fácil acesso?**")
+                        val_soc_ss = historico.get("primeiros_socorros_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["primeiros_socorros_sala_servicos"] = st.radio(
+                            "Primeiros Socorros:", opcoes_status, index=mapeamento_status.get(val_soc_ss, 0), key="rad_primeiros_socorros_sala_servicos", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui Lista de Estabelecimentos de Saúde próximos?**")
+                        val_lista_h = historico.get("lista_estab_saude_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["lista_estab_saude_sala_servicos"] = st.radio(
+                            "Lista Hospitais Próximos:", opcoes_status, index=mapeamento_status.get(val_lista_h, 0), key="rad_lista_estab_saude_sala_servicos", horizontal=True
+                        )
+
+                    with col_ss_doc2:
+                        st.markdown("**Possui Declaração de Serviços prestados?**")
+                        val_decl_ss = historico.get("declaracao_serviços_sala_servicos", "Não avaliado")
+                        dados_inspecao_atual["declaracao_serviços_sala_servicos"] = st.radio(
+                            "Declaração de Serviços:", opcoes_status, index=mapeamento_status.get(val_decl_ss, 0), key="rad_declaracao_serviços_sala_servicos", horizontal=True
+                        )
+            # --------------------------------------------------------------------------
+            # SUB-ABA: DML
+            # --------------------------------------------------------------------------
+            if "DML" in map_abas_geradas:
+                with map_abas_geradas["DML"]:
+                    st.markdown("### 🧹 Depósito de Material de Limpeza (DML)")
+                    
+                    st.markdown("**O DML possui condições adequadas de estrutura?**")
+                    val_est_dml = historico.get("condicoes_estruturais_dml", "Não avaliado")
+                    dados_inspecao_atual["condicoes_estruturais_dml"] = st.radio(
+                        "Estrutura DML:", opcoes_status, index=mapeamento_status.get(val_est_dml, 0), key="rad_condicoes_estruturais_dml", horizontal=True
+                    )
+                    st.write("")
+                    
+                    st.markdown("**O DML possui condições higiênico-sanitárias adequadas?**")
+                    val_hig_dml = historico.get("condicoes_higienicas_dml", "Não avaliado")
+                    dados_inspecao_atual["condicoes_higienicas_dml"] = st.radio(
+                        "Higiene DML:", opcoes_status, index=mapeamento_status.get(val_hig_dml, 0), key="rad_condicoes_higienicas_dml", horizontal=True
+                    )
+                    st.write("")
+                    
+                    st.markdown("**Os materiais e produtos de limpeza utilizados são regularizados na ANVISA?**")
+                    val_reg_dml = historico.get("produto_regularizados_dml", "Não avaliado")
+                    dados_inspecao_atual["produto_regularizados_dml"] = st.radio(
+                        "Produtos Regularizados DML:", opcoes_status, index=mapeamento_status.get(val_reg_dml, 0), key="rad_produto_regularizados_dml", horizontal=True
+                    )
+
+            # --------------------------------------------------------------------------
+            # SUB-ABA: SANITÁRIO FUNCIONÁRIOS
+            # --------------------------------------------------------------------------
+            if "Sanitário Funcionários" in map_abas_geradas:
+                with map_abas_geradas["Sanitário Funcionários"]:
+                    st.markdown("### 🚻 Sanitários dos Funcionários")
+                    
+                    col_sf1, col_sf2 = st.columns(2)
+                    
+                    with col_sf1:
+                        st.markdown("**Possui condições adequadas de estrutura?**")
+                        val_est_sf = historico.get("condicoes_estruturais_sanitarios_funcionarios", "Não avaliado")
+                        dados_inspecao_atual["condicoes_estruturais_sanitarios_funcionarios"] = st.radio(
+                            "Estrutura Sanitário Func.:", opcoes_status, index=mapeamento_status.get(val_est_sf, 0), key="rad_condicoes_estruturais_sanitarios_funcionarios", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui condições higiênico-sanitárias adequadas?**")
+                        val_hig_sf = historico.get("condicoes_higienicas_sanitarios_funcionarios", "Não avaliado")
+                        dados_inspecao_atual["condicoes_higienicas_sanitarios_funcionarios"] = st.radio(
+                            "Higiene Sanitário Func.:", opcoes_status, index=mapeamento_status.get(val_hig_sf, 0), key="rad_condicoes_higienicas_sanitarios_funcionarios", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**É provido de lavatório com água corrente?**")
+                        val_lav_sf = historico.get("lavatorio_sanitarios_funcionarios", "Não avaliado")
+                        dados_inspecao_atual["lavatorio_sanitarios_funcionarios"] = st.radio(
+                            "Lavatório Func.:", opcoes_status, index=mapeamento_status.get(val_lav_sf, 0), key="rad_lavatorio_sanitarios_funcionarios", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui local destinado à guarda de pertences dos funcionários (armários/escaninhos)?**")
+                        val_pert_sf = historico.get("local_pertences_sanitarios_funcionarios", "Não avaliado")
+                        dados_inspecao_atual["local_pertences_sanitarios_funcionarios"] = st.radio(
+                            "Guarda de Pertences:", opcoes_status, index=mapeamento_status.get(val_pert_sf, 0), key="rad_local_pertences_sanitarios_funcionarios", horizontal=True
+                        )
+
+                    with col_sf2:
+                        st.markdown("**Possui sabonete líquido para a higienização?**")
+                        val_sab_sf = historico.get("sabonete_sanitarios_funcionarios", "Não avaliado")
+                        dados_inspecao_atual["sabonete_sanitarios_funcionarios"] = st.radio(
+                            "Sabonete Líquido Func.:", opcoes_status, index=mapeamento_status.get(val_sab_sf, 0), key="rad_sabonete_sanitarios_funcionarios", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui toalha de papel de uso individual e descartável?**")
+                        val_pap_sf = historico.get("papel_toalha_sanitarios_funcionarios", "Não avaliado")
+                        dados_inspecao_atual["papel_toalha_sanitarios_funcionarios"] = st.radio(
+                            "Papel Toalha Func.:", opcoes_status, index=mapeamento_status.get(val_pap_sf, 0), key="rad_papel_toalha_sanitarios_funcionarios", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui lixeira com tampa e acionamento por pedal?**")
+                        val_lix_sf = historico.get("lixeira_sanitarios_funcionarios", "Não avaliado")
+                        dados_inspecao_atual["lixeira_sanitarios_funcionarios"] = st.radio(
+                            "Lixeira Sanitário Func.:", opcoes_status, index=mapeamento_status.get(val_lix_sf, 0), key="rad_lixeira_sanitarios_funcionarios", horizontal=True
+                        )
+
+            # --------------------------------------------------------------------------
+            # SUB-ABA: SANITÁRIO CLIENTES
+            # --------------------------------------------------------------------------
+            if "Sanitário Clientes" in map_abas_geradas:
+                with map_abas_geradas["Sanitário Clientes"]:
+                    st.markdown("### 🚾 Sanitários dos Clientes")
+                    
+                    col_sc1, col_sc2 = st.columns(2)
+                    
+                    with col_sc1:
+                        st.markdown("**Possui condições adequadas de estrutura?**")
+                        val_est_sc = historico.get("condicoes_estruturais_sanitarios_clientes", "Não avaliado")
+                        dados_inspecao_atual["condicoes_estruturais_sanitarios_clientes"] = st.radio(
+                            "Estrutura Sanitário Cli.:", opcoes_status, index=mapeamento_status.get(val_est_sc, 0), key="rad_condicoes_estruturais_sanitarios_clientes", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui condições higiênico-sanitárias adequadas?**")
+                        val_hig_sc = historico.get("condicoes_higienicas_sanitarios_clientes", "Não avaliado")
+                        dados_inspecao_atual["condicoes_higienicas_sanitarios_clientes"] = st.radio(
+                            "Higiene Sanitário Cli.:", opcoes_status, index=mapeamento_status.get(val_hig_sc, 0), key="rad_condicoes_higienicas_sanitarios_clientes", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**É provido de lavatório com água corrente?**")
+                        val_lav_sc = historico.get("lavatorio_sanitarios_clientes", "Não avaliado")
+                        dados_inspecao_atual["lavatorio_sanitarios_clientes"] = st.radio(
+                            "Lavatório Cli.:", opcoes_status, index=mapeamento_status.get(val_lav_sc, 0), key="rad_lavatorio_sanitarios_clientes", horizontal=True
+                        )
+
+                    with col_sc2:
+                        st.markdown("**Possui sabonete líquido para a higienização?**")
+                        val_sab_sc = historico.get("sabonete_sanitarios_clientes", "Não avaliado")
+                        dados_inspecao_atual["sabonete_sanitarios_clientes"] = st.radio(
+                            "Sabonete Líquido Cli.:", opcoes_status, index=mapeamento_status.get(val_sab_sc, 0), key="rad_sabonete_sanitarios_clientes", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui toalha de papel de uso individual e descartável?**")
+                        val_pap_sc = historico.get("papel_toalha_sanitarios_clientes", "Não avaliado")
+                        dados_inspecao_atual["papel_toalha_sanitarios_clientes"] = st.radio(
+                            "Papel Toalha Cli.:", opcoes_status, index=mapeamento_status.get(val_pap_sc, 0), key="rad_papel_toalha_sanitarios_clientes", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**Possui lixeira com tampa e acionamento por pedal?**")
+                        val_lix_sc = historico.get("lixeira_sanitarios_clientes", "Não avaliado")
+                        dados_inspecao_atual["lixeira_sanitarios_clientes"] = st.radio(
+                            "Lixeira Sanitário Cli.:", 
+                            options=opcoes_status, 
+                            index=mapeamento_status.get(val_lix_sc, 0), 
+                            key="rad_lixeira_sanitarios_clientes", 
+                            horizontal=True
+                        )
+            # --------------------------------------------------------------------------
+            # SUB-ABA: COPA
+            # --------------------------------------------------------------------------
+            if "Copa" in map_abas_geradas:
+                with map_abas_geradas["Copa"]:
+                    st.markdown("### ☕ Copa / Refeitório")
+                    
+                    st.markdown("**Possui local separado, isolado e exclusivo para essa finalidade?**")
+                    val_sep_copa = historico.get("separacao_copa", "Não avaliado")
+                    dados_inspecao_atual["separacao_copa"] = st.radio(
+                        "Isolamento da Copa:", opcoes_status, index=mapeamento_status.get(val_sep_copa, 0), key="rad_separacao_copa", horizontal=True
+                    )
+                    st.write("")
+                    
+                    st.markdown("**O ambiente possui condições adequadas de estrutura?**")
+                    val_est_copa = historico.get("condicoes_estruturais_copa", "Não avaliado")
+                    dados_inspecao_atual["condicoes_estruturais_copa"] = st.radio(
+                        "Estrutura Copa:", opcoes_status, index=mapeamento_status.get(val_est_copa, 0), key="rad_condicoes_estruturais_copa", horizontal=True
+                    )
+                    st.write("")
+                    
+                    st.markdown("**O ambiente possui condições higiênico-sanitárias adequadas?**")
+                    val_hig_copa = historico.get("condicoes_higienicas_copa", "Não avaliado")
+                    dados_inspecao_atual["condicoes_higienicas_copa"] = st.radio(
+                        "Higiene Copa:", opcoes_status, index=mapeamento_status.get(val_hig_copa, 0), key="rad_condicoes_higienicas_copa", horizontal=True
+                    )
+
+            # --------------------------------------------------------------------------
+            # SUB-ABA: ADM
+            # --------------------------------------------------------------------------
+            if "ADM" in map_abas_geradas:
+                with map_abas_geradas["ADM"]:
+                    st.markdown("### 💼 Administração / Escritório")
+                    
+                    col_adm1, col_adm2 = st.columns(2)
+                    
+                    with col_adm1:
+                        st.markdown("**A área administrativa possui condições adequadas de estrutura?**")
+                        val_est_adm = historico.get("condicoes_estruturais_adm", "Não avaliado")
+                        dados_inspecao_atual["condicoes_estruturais_adm"] = st.radio(
+                            "Estrutura ADM:", opcoes_status, index=mapeamento_status.get(val_est_adm, 0), key="rad_condicoes_estruturais_adm", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**A área administrativa possui condições higiênico-sanitárias adequadas?**")
+                        val_hig_adm = historico.get("condicoes_higienicas_adm", "Não avaliado")
+                        dados_inspecao_atual["condicoes_higienicas_adm"] = st.radio(
+                            "Higiene ADM:", opcoes_status, index=mapeamento_status.get(val_hig_adm, 0), key="rad_condicoes_higienicas_adm", horizontal=True
+                        )
+
+                    with col_adm2:
+                        st.markdown("**Há devida proteção contra entrada de pragas e insetos?**")
+                        val_prag_adm = historico.get("protecao_pragas_adm", "Não avaliado")
+                        dados_inspecao_atual["protecao_pragas_adm"] = st.radio(
+                            "Pragas ADM:", opcoes_status, index=mapeamento_status.get(val_prag_adm, 0), key="rad_protecao_pragas_adm", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**A ventilação no ambiente é adequada?**")
+                        val_vent_adm = historico.get("ventilacao_adm", "Não avaliado")
+                        dados_inspecao_atual["ventilacao_adm"] = st.radio(
+                            "Ventilação ADM:", opcoes_status, index=mapeamento_status.get(val_vent_adm, 0), key="rad_ventilacao_adm", horizontal=True
+                        )
+                        st.write("")
+                        
+                        st.markdown("**A iluminação no ambiente é adequada?**")
+                        val_ilum_adm = historico.get("iluminacao_adm", "Não avaliado")
+                        dados_inspecao_atual["iluminacao_adm"] = st.radio(
+                            "Iluminação ADM:", opcoes_status, index=mapeamento_status.get(val_ilum_adm, 0), key="rad_iluminacao_adm", horizontal=True
+                        )
+
 
     # ==============================================================================
     # TAB 6: SALA DE SERVIÇOS
