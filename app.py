@@ -267,6 +267,242 @@ elif st.session_state["tela"] == "menu_opcoes":
             st.rerun()
         if st.button("📂 Adicionar Avaliação Documental", use_container_width=True, disabled=True):
             pass
+        # ==============================================================================
+        # 1. BOTÃO DE GERAÇÃO DO RELATÓRIO OFICIAL DE INSPEÇÃO (.DOCX)
+        # ==============================================================================
+        if st.button("📄 Gerar Relatório de Inspeção Sanitária (Word)", use_container_width=True, type="primary"):
+            if conn_nuvem is None:
+                st.error("❌ Conexão com a nuvem indisponível.")
+            else:
+                with st.spinner("📦 Coletando dados do Supabase e estruturando texto do relatório..."):
+                    try:
+                        with conn_nuvem.session as session:
+                            # Busca a última inspeção realizada para a solicitação WEB ativa
+                            query_relatorio = """
+                                SELECT * FROM inspecoes_db 
+                                WHERE web = :web 
+                                ORDER BY data_procedimento DESC, id_inspecao DESC 
+                                LIMIT 1;
+                            """
+                            registro_banco = session.execute(text(query_relatorio), {"web": web_ativa}).mappings().fetchone()
+                            
+                            if not registro_banco:
+                                st.warning("⚠️ Nenhuma inspeção localizada na nuvem para esta solicitação WEB.")
+                            else:
+                                dados = dict(registro_banco)
+                                
+                                # Processamento de segurança dos campos JSONB para texto utilizável
+                                import json
+                                def converter_jsonb(campo):
+                                    if isinstance(campo, str) and campo.strip():
+                                        try: return json.loads(campo)
+                                        except: return campo
+                                    return campo if isinstance(campo, (dict, list)) else []
+
+                                locais_térmicos = converter_jsonb(dados.get("locais_controle_geladeiras_json"))
+                                list_mc = converter_jsonb(dados.get("medicamentos_controlados_verificados_json"))
+                                list_am = converter_jsonb(dados.get("antimicrobianos_verificados_json"))
+                                
+                                # --- INÍCIO DA MONTAGEM DO ARQUIVO WORD ---
+                                from docx import Document
+                                import io
+                                
+                                doc = Document()
+                                
+                                # Cabeçalho Oficial
+                                doc.add_heading("RELATÓRIO DE FISCALIZAÇÃO SANITÁRIA", level=1)
+                                doc.add_paragraph(f"Identificação do Processo Web: {dados.get('web', 'Não informado')}")
+                                doc.add_paragraph(f"Data do Procedimento: {dados.get('data_procedimento', 'Não informada')}")
+                                doc.add_paragraph(f"Chave Única de Inspeção (ID): {dados.get('id_inspecao', 'Não gerado')}")
+                                
+                                # Seção 1: Identificação Cadastral
+                                doc.add_heading("1. Identificação do Estabelecimento e Representação", level=2)
+                                doc.add_paragraph(f"Número de Inscrição no CNPJ: {dados.get('cnpj', 'Não informado')}")
+                                doc.add_paragraph(f"Acompanhantes e contatos identificados no ato fiscalizatório: {dados.get('acompanhantes_inspecao', 'Nenhum contato registrado.')}")
+                                doc.add_paragraph(f"Presença do Farmacêutico Responsável Técnico no momento da inspeção: {dados.get('farmaceutico_presente', 'Não avaliado')}")
+                                
+                                # Seção 2: Regularidade Documental
+                                doc.add_heading("2. Avaliação de Regularidade Documental", level=2)
+                                doc.add_paragraph("Com base na verificação dos documentos obrigatórios apresentados pelo estabelecimento, constatou-se a seguinte situação regulamentar:")
+                                doc.add_paragraph(f"• Autorização de Funcionamento de Empresa (AFE / ANVISA): Avaliada como {dados.get('possui_afe', 'Não avaliada')}. Número informado: {dados.get('numero_afe', 'N/A')}. Data de publicação: {dados.get('data_afe', 'N/A')}. Situação cadastral: {dados.get('status_afe', 'N/A')}.")
+                                doc.add_paragraph(f"• Certidão de Regularidade Técnica (CRT / CRF): Avaliada como {dados.get('possui_crt', 'Não avaliada')}. Número informado: {dados.get('numero_crt', 'N/A')}. Data de emissão: {dados.get('data_crt', 'N/A')}. Situação cadastral: {dados.get('status_crt', 'N/A')}. Responsável Técnico descrito: {dados.get('rt_crt', 'N/A')}.")
+                                doc.add_paragraph(f"• Manual de Boas Práticas Farmacêuticas (MBPF): O item encontra-se avaliado como {dados.get('possui_mbpf', 'Não avaliado')}.")
+                                doc.add_paragraph(f"• Procedimentos Operacionais Padrão (POPs): O item encontra-se avaliado como {dados.get('possui_pops', 'Não avaliado')}.")
+                                doc.add_paragraph(f"• Controle de Vetores e Pragas (Dedetização): Avaliado como {dados.get('possui_pragas', 'Não avaliado')}. Empresa controladora: {dados.get('empresa_pragas', 'N/A')} (CNPJ: {dados.get('cnpj_pragas', 'N/A')}). Data de aplicação: {dados.get('data_pragas', 'N/A')} com validade até: {dados.get('validade_pragas', 'N/A')}. Validade do alvará sanitário da controladora: {dados.get('val_alvara_pragas', 'N/A')}.")
+                                doc.add_paragraph(f"• Higienização do Reservatório de Água (Caixa d'Água): Avaliada como {dados.get('possui_limpeza_reserv_agua', 'Não avaliado')}. Empresa executora: {dados.get('empresa_reserv_agua', 'N/A')} (CNPJ: {dados.get('cnpj_reserv_agua', 'N/A')}). Data da execução: {dados.get('data_reserv_agua', 'N/A')}.")
+                                doc.add_paragraph(f"• Certificado de Licença do Corpo de Bombeiros: Avaliado como {dados.get('possui_vistoria_bombeiro', 'Não avaliado')}. Tipo de documento: {dados.get('tipo_vistoria_bombeiro', 'N/A')}. Número: {dados.get('num_vistoria_bombeiro', 'N/A')}. Emissão: {dados.get('data_vistoria_bombeiro', 'N/A')} com validade até: {dados.get('validade_vistoria_bombeiro', 'N/A')}.")
+                                doc.add_paragraph(f"• Plano de Gerenciamento de Resíduos (PGRSS): Avaliado como {dados.get('possui_pgrss', 'Não avaliado')}. Emissão: {dados.get('data_pgrss', 'N/A')}. Apresentou comprovante de coleta: {dados.get('comp_coleta_pgrss', 'N/A')}. Data da última retirada de resíduos: {dados.get('data_coleta_residuo', 'N/A')}.")
+                                doc.add_paragraph(f"• Saúde Ocupacional (PCMSO): Avaliado como {dados.get('possui_pcmso', 'Não avaliado')}. Empresa executora: {dados.get('empresa_pcmso', 'N/A')}. Médico coordenador: {dados.get('medico_pcmso', 'N/A')}. Emissão: {dados.get('emissao_pcmso', 'N/A')} com validade até: {dados.get('validade_pcmso', 'N/A')}.")
+                                doc.add_paragraph(f"• Gerenciamento de Riscos (PGR): Avaliado como {dados.get('possui_pgr', 'Não avaliado')}. Responsável elaborador: {dados.get('responsavel_pgr', 'N/A')}. Emissão: {dados.get('emissao_pgr', 'N/A')} com validade até: {dados.get('validade_pgr', 'N/A')}.")
+                                doc.add_paragraph(f"• Atestados de Saúde Ocupacional (ASO): Avaliados como {dados.get('possui_aso', 'Não avaliado')}. Clínica responsável: {dados.get('empresa_aso', 'N/A')}. Observações/Quantidade registrada: {dados.get('numero_aso', 'N/A')}.")
+                                
+                                # Seção 3: Cadeia de Frio e Áreas Térmicas
+                                doc.add_heading("3. Monitoramento de Áreas Térmicas e Cadeia de Frio", level=2)
+                                doc.add_paragraph("A verificação física e documental das condições de temperatura e umidade nos ambientes de armazenamento e equipamentos registrou os seguintes dados:")
+                                
+                                # Extração descritiva da lista de Termo-higrômetros
+                                lista_tu = locais_térmicos.get("lista_tu", []) if isinstance(locais_térmicos, dict) else []
+                                if lista_tu:
+                                    doc.add_paragraph("• Registros de Temperatura e Umidade (Termo-higrômetros):")
+                                    for idx_tu, item_tu in enumerate(lista_tu):
+                                        doc.add_paragraph(
+                                            f"  - Equipamento {idx_tu + 1} posicionado em '{item_tu.get('local_controle_t_u', 'N/A')}'. "
+                                            f"Temperatura no ato: {item_tu.get('t_agora', 'N/A')}°C, Umidade: {item_tu.get('u_agora', 'N/A')}%. "
+                                            f"Mantém planilha de registro diário: {item_tu.get('planilha_controle_t_u', 'N/A')}. "
+                                            f"Valores históricos estão adequados: {item_tu.get('conformidade_t_u', 'N/A')}. "
+                                            f"Marca/Modelo: {item_tu.get('marca_modelo_termohigrometro', 'N/A')}. "
+                                            f"Situação da Calibração Metrológica: {item_tu.get('possui_calibracao', 'N/A')}. "
+                                            f"Tipo de comprovação: {item_tu.get('tipo_comprovacao_tu', 'N/A')}. "
+                                            f"Certificado: {item_tu.get('certificado_calibracao', 'N/A')} (Empresa: {item_tu.get('empresa_calibracao', 'N/A')}, Data: {item_tu.get('data_calibracao', 'N/A')}, Validade: {item_tu.get('validade_calibracao', 'N/A')}). "
+                                        f"Nota Fiscal de Compra: {item_tu.get('nota_aquisicao', 'N/A')} (Data: {item_tu.get('data_aquisicao', 'N/A')}, Fornecedor: {item_tu.get('empresa_aquisicao', 'N/A')})."
+                                    )
+                                else:
+                                    doc.add_paragraph("• Nenhum equipamento termo-higrômetro (T e U) foi registrado para esta inspeção.")
+                                
+                                # Extração descritiva da lista de Termômetros Simples
+                                lista_t = locais_térmicos.get("lista_t", []) if isinstance(locais_térmicos, dict) else []
+                                if lista_t:
+                                    doc.add_paragraph("• Registros de Temperatura Simples (Termômetros):")
+                                    for idx_t, item_t in enumerate(lista_t):
+                                        doc.add_paragraph(
+                                            f"  - Equipamento {idx_t + 1} posicionado em '{item_t.get('local_controle_t', 'N/A')}'. "
+                                            f"Temperatura no ato: {item_t.get('t_inspecao', 'N/A')}°C. "
+                                            f"Mantém planilha de registro diário: {item_t.get('planilha_controle_t', 'N/A')}. "
+                                            f"Valores históricos estão adequados: {item_t.get('conformidade_t', 'N/A')}. "
+                                            f"Marca/Modelo: {item_t.get('marca_modelo_termometro', 'N/A')}. "
+                                            f"Situação da Calibração Metrológica: {item_t.get('possui_calibracao_t', 'N/A')}. "
+                                            f"Tipo de comprovação: {item_t.get('tipo_comprovacao_t', 'N/A')}. "
+                                            f"Certificado: {item_t.get('certificado_calibracao_t', 'N/A')} (Empresa: {item_t.get('empresa_calibracao_t', 'N/A')}, Data: {item_t.get('data_calibracao_t', 'N/A')}, Validade: {item_t.get('validade_calibracao_t', 'N/A')}). "
+                                            f"Nota Fiscal de Compra: {item_t.get('nota_aquisicao_t', 'N/A')} (Data: {item_t.get('data_aquisicao_t', 'N/A')}, Fornecedor: {item_t.get('empresa_aquisicao_t', 'N/A')})."
+                                        )
+                                else:
+                                    doc.add_paragraph("• Nenhum equipamento termômetro simples (T) foi registrado para esta inspeção.")
+                                # Seção 4: Comercialização e Controle Especial
+                                doc.add_heading("4. Comercialização de Produtos e Controle Especial (Portaria 344/98)", level=2)
+                                doc.add_paragraph(f"• Integridade das Embalagens e Rotulagem original: {dados.get('embalagem_produtos', 'Não avaliado')}.")
+                                
+                                if dados.get("lista_produtos_nc"):
+                                    doc.add_paragraph(f"  - Detalhamento de Não Conformidades em Embalagens: {dados.get('lista_produtos_nc')}")
+                                
+                                doc.add_paragraph(f"• Comercialização estrita de produtos permitidos por lei: {dados.get('permitidos_venda_produtos', 'Não avaliado')}.")
+                                
+                                if dados.get("lista_produtos_np"):
+                                    doc.add_paragraph(f"  - Detalhamento de Produtos Não Permitidos encontrados: {dados.get('lista_produtos_np')}")
+                                
+                                doc.add_paragraph(f"• Atividade de Dispensação de Medicamentos sob Controle Especial: {dados.get('dispensa_controle_especial', 'Não informado')}")
+                                
+                                if dados.get("dispensa_controle_especial") == "Sim":
+                                    doc.add_paragraph(f"  - Possui local de acesso restrito (trancado à chave) para armazenamento: {dados.get('local_armazenamento_controle_especial', 'Não avaliado')}")
+                                    doc.add_paragraph(f"  - Possui área segregada identificada para itens a serem inutilizados: {dados.get('area_segregada_inutilizados_mc', 'Não avaliado')}")
+                                    
+                                    # Balanços e Notificações
+                                    doc.add_paragraph(f"  - Regularidade de dispensação de Retinóicos (Lista C2): {dados.get('dispensa_retinoicos', 'Não avaliado')}. Data da autorização: {dados.get('data_autorizacao', 'N/A')}. Edital VISA: {dados.get('n_edital_visa_autorizacao', 'N/A')}. Sistema informatizado: {dados.get('sistema_informatizado_autorizacao', 'N/A')}. Tipo de Escrituração: {dados.get('tipo_escrituracao', 'N/A')}.")
+                                    
+                                    if dados.get("obs_lista_b2"): 
+                                        doc.add_paragraph(f"    * Observação Retinóicos: {dados.get('obs_lista_b2')}")
+                                    
+                                    doc.add_paragraph(f"  - Regularidade de dispensação da Lista A (Receita Amarela): {dados.get('dispensa_lista_a', 'Não avaliado')}. Data do último protocolo da RMNRA entregue na VISA: {dados.get('data_protocolo_rmnra', 'N/A')}.")
+                                    
+                                    if dados.get("obs_lista_a"): 
+                                        doc.add_paragraph(f"    * Observação Lista A: {dados.get('obs_lista_a')}")
+                                    
+                                    doc.add_paragraph(f"  - Regularidade de dispensação da Lista B2 (Anorexígenos): {dados.get('dispensa_lista_b2', 'Não avaliado')}. Data do último protocolo da RMNRB2 entregue na VISA: {dados.get('data_protocolo_rmnrb2', 'N/A')}.")
+                                    doc.add_paragraph(f"  - Envio de Balanços Psicoativos (BMPO): Protocolo Trimestral em: {dados.get('data_envio_bmpo_trimestral', 'N/A')}. Protocolo Anual em: {dados.get('data_envio_bmpo_anual', 'N/A')}.")
+                                    
+                                    if dados.get("obs_bmpo"): 
+                                        doc.add_paragraph(f"    * Observação Balanços: {dados.get('obs_bmpo')}")
+                                    
+                                    # Conferência Física de Estoque - Controlados
+                                    if list_mc:
+                                        doc.add_paragraph("  - Amostragem de Estoque Verificada: Medicamentos Controlados:")
+                                        for idx_mc, item_mc in enumerate(list_mc):
+                                            doc.add_paragraph(
+                                                f"    * Item {idx_mc + 1}: Princípio Ativo: {item_mc.get('principio_ativo_mc', 'N/A')}, Apresentação: {item_mc.get('apresentacao_mc', 'N/A')}, Fabricante: {item_mc.get('fabricante_mc', 'N/A')}, "
+                                                f"Lote: {item_mc.get('lote_mc', 'N/A')}, Validade: {item_mc.get('validade_mc', 'N/A')}, Estoque Físico: {item_mc.get('quantidade_fisico_mc', 'N/A')}, Sistema SNGPC: {item_mc.get('quantidade_sistema_mc', 'N/A')}. "
+                                                f"Desvios anotados: {item_mc.get('obs_mc', 'Nenhum desvio registrado.')}"
+                                            )
+                                    
+                                    # Conferência Física de Estoque - Antimicrobianos
+                                    if list_am:
+                                        doc.add_paragraph("  - Amostragem de Estoque Verificada: Antimicrobianos:")
+                                        for idx_am, item_am in enumerate(list_am):
+                                            doc.add_paragraph(
+                                                f"    * Item {idx_am + 1}: Princípio Ativo: {item_am.get('principio_ativo_am', 'N/A')}, Apresentação: {item_am.get('apresentacao_am', 'N/A')}, Fabricante: {item_am.get('fabricante_am', 'N/A')}, "
+                                                f"Lote: {item_am.get('lote_am', 'N/A')}, Validade: {item_am.get('validade_am', 'N/A')}, Estoque Físico: {item_am.get('quantidade_fisico_am', 'N/A')}, Sistema: {item_am.get('quantidade_sistema_am', 'N/A')}. "
+                                                f"Desvios anotados: {item_am.get('obs_am', 'Nenhum desvio registrado.')}"
+                                            )
+                                    
+                                    doc.add_paragraph(f"  - Possui Termo de Inutilização de Medicamentos conforme: {dados.get('possui_termo_inutilizacao_visa', 'Não avaliado')}. Data do último protocolo entregue na VISA: {dados.get('data_termo_inutilizacao_visa', 'N/A')}.")
+                                    doc.add_paragraph(f"  - Realiza transmissão regular ao SNGPC: {dados.get('faz_transmissao_sngpc', 'Não avaliado')}. Último envio em: {dados.get('data__transmissao_sngpc', 'N/A')}. Período correspondente: {dados.get('periodo_transmissao_sngpc', 'N/A')}. Data da validação: {dados.get('validacao_transmissao_sngpc', 'N/A')}.")
+                                # Seção 5: Avaliação de Áreas Físicas
+                                doc.add_heading("5. Condições Estruturais e Sanitárias dos Setores Físicos", level=2)
+                                doc.add_paragraph("A vistoria interna realizada nos setores do estabelecimento registrou os seguintes parâmetros:")
+                                
+                                if dados.get("possui_recebimento") == "Sim":
+                                    doc.add_paragraph(f"• Setor de Recebimento: Condições estruturais avaliadas como {dados.get('condicoes_estruturais_recebimento', 'N/A')}, condições higiênicas como {dados.get('condicoes_higienicas_recebimento', 'N/A')} e controle/registros de mercadorias como {dados.get('controle_recebimento', 'N/A')}.")
+                                
+                                if dados.get("possui_estoque") == "Sim":
+                                    doc.add_paragraph(f"• Setor de Armazenamento / Estoque: Condições estruturais avaliadas como {dados.get('condicoes_estruturais_estoque', 'N/A')} (Piso: {dados.get('piso_estoque', 'N/A')}, Parede: {dados.get('parede_estoque', 'N/A')}, Teto: {dados.get('teto_estoque', 'N/A')}). Condições higiênicas: {dados.get('condicoes_higienicas_estoque', 'N/A')}. Proteção de pragas: {dados.get('protecao_pragas_estoque', 'N/A')}. Ventilação: {dados.get('ventilacao_estoque', 'N/A')}. Iluminação: {dados.get('iluminacao_estoque', 'N/A')}. Afastamento de estruturas: {dados.get('afastamento_structure_estoque', 'N/A')}. Área de não conformes identificada: {dados.get('produtos_nao_conformes_estoque', 'N/A')}. Realiza coleta de descarte comunitário: {dados.get('coleta_medicamentos_clientes_estoque', 'N/A')}.")
+                                
+                                if dados.get("possui_dml") == "Sim":
+                                    doc.add_paragraph(f"• Depósito de Material de Limpeza (DML): Condições estruturais avaliadas como {dados.get('condicoes_estruturais_dml', 'N/A')}, condições higiênicas como {dados.get('condicoes_higienicas_dml', 'N/A')} e produtos regularizados como {dados.get('produto_regularizados_dml', 'N/A')}.")
+                                
+                                if dados.get("possui_sanitarios_funcionarios") == "Sim":
+                                    doc.add_paragraph(f"• Sanitários dos Funcionários: Estrutura avaliada como {dados.get('condicoes_estruturais_sanitarios_funcionarios', 'N/A')}, higiene como {dados.get('condicoes_higienicas_sanitarios_funcionarios', 'N/A')}. Lavatório presente: {dados.get('lavatorio_sanitarios_funcionarios', 'N/A')}, sabonete líquido: {dados.get('sabonete_sanitarios_funcionarios', 'N/A')}, papel toalha descartável: {dados.get('papel_toalha_sanitarios_funcionarios', 'N/A')}, lixeira com tampa e pedal: {dados.get('lixeira_sanitarios_funcionarios', 'N/A')}. Guarda de pertences e armários: {dados.get('local_pertences_sanitarios_funcionarios', 'N/A')}.")
+                                
+                                if dados.get("possui_sanitarios_clientes") == "Sim":
+                                    doc.add_paragraph(f"• Sanitários dos Clientes: Estrutura avaliada como {dados.get('condicoes_estruturais_sanitarios_clientes', 'N/A')}, higiene como {dados.get('condicoes_higienicas_sanitarios_clientes', 'N/A')}. Lavatório presente: {dados.get('lavatorio_sanitarios_clientes', 'N/A')}, sabonete líquido: {dados.get('sabonete_sanitarios_clientes', 'N/A')}, papel toalha descartável: {dados.get('papel_toalha_sanitarios_clientes', 'N/A')}, lixeira com tampa e pedal: {dados.get('lixeira_sanitarios_clientes', 'N/A')}.")
+                                
+                                if dados.get("possui_copa") == "Sim":
+                                    doc.add_paragraph(f"• Copa / Refeitório: Local isolado e com separação adequado: {dados.get('separacao_copa', 'N/A')}. Condições estruturais avaliadas como {dados.get('condicoes_estruturais_copa', 'N/A')} e higiene avaliada como {dados.get('condicoes_higienicas_copa', 'N/A')}.")
+                                
+                                if dados.get("possui_adm") == "Sim":
+                                    doc.add_paragraph(f"• Area Administrativa / Escritório: Estrutura avaliada como {dados.get('condicoes_estruturais_adm', 'N/A')}, higiene como {dados.get('condicoes_higienicas_adm', 'N/A')}. Proteção de pragas: {dados.get('protecao_pragas_adm', 'N/A')}. Ventilação: {dados.get('ventilacao_adm', 'N/A')}. Iluminação: {dados.get('iluminacao_adm', 'N/A')}.")
+                                # Seção 6: Sala de Serviços Farmacêuticos
+                                doc.add_heading("6. Prática de Serviços Farmacêuticos (RDC RDC 44/09)", level=2)
+                                if dados.get("possui_sala_servicos") == "Sim":
+                                    doc.add_paragraph(f"• Atividades e Controles da Sala: Serviços ativos no local: {dados.get('servicos_realizados_sala_servicos', 'Nenhum selecionado')}. Possui POPs escritos para todas as práticas: {dados.get('procedimentos_escritos_sala_servicos', 'N/A')}. Emissão de declaração de serviços entregue ao usuário: {dados.get('declaracao_sala_servicos', 'N/A')}. Mantém registro de higienização regular da sala: {dados.get('registro_limpeza_sala_servicos', 'N/A')}.")
+                                    
+                                    # Serviços Específicos detalhados em formato corrido
+                                    if dados.get("pressao_arterial") == "sim":
+                                        doc.add_paragraph(f"  - Equipamento de Pressão Arterial: Marca/Modelo: {dados.get('marca_modelo_pressao_arterial', 'N/A')}. Avaliação da calibração metrológica: {dados.get('possui_calibracao_pressao_arterial', 'N/A')}. Tipo de comprovação: {dados.get('tipo_comprovacao_pressao_arterial', 'N/A')}. Certificado: {dados.get('certificado_calibracao_pressao_arterial', 'N/A')} (Empresa: {dados.get('empresa_calibracao_pressao_arterial', 'N/A')}, Data: {dados.get('data_calibracao_pressao_arterial', 'N/A')}, Validade: {dados.get('validade_calibracao_pressao_arterial', 'N/A')}). Nota Fiscal: {dados.get('nota_aquisicao_pressao_arterial', 'N/A')} (Data: {dados.get('data_aquisicao_pressao_arterial', 'N/A')}, Fornecedor: {dados.get('empresa_aquisicao_pressao_arterial', 'N/A')}).")
+                                    if dados.get("t_corporal") == "sim":
+                                        doc.add_paragraph(f"  - Equipamento de Temperatura Corporal: Marca/Modelo do termômetro clínico: {dados.get('marca_modelo_t_corporal', 'N/A')}.")
+                                    if dados.get("perfuracao_orelha") == "sim":
+                                        doc.add_paragraph(f"  - Serviço de Perfuração Auricular: Marca/Modelo da pistola utilizada: {dados.get('marca_modelo_perfuracao_orelha', 'N/A')}. Número de lote das tarraxas/brincos: {dados.get('lote_perfuracao_orelha', 'N/A')}.")
+                                    if dados.get("servico_vacinacao") == "sim":
+                                        doc.add_paragraph(f"  - Serviço de Vacinação: Capacitação profissional: {dados.get('capacitacao_vacinacao', 'N/A')}. Refrigerador exclusivo: {dados.get('refrigerador_vacinacao', 'N/A')}. Prontuário individual: {dados.get('registro_vacinacao', 'N/A')}. Comprovação de origem das ampolas: {dados.get('origem_vacinacao', 'N/A')}. Notificação de eventos adversos: {dados.get('ocorrencias_vacinacao', 'N/A')}. Credenciamento CIVP ANVISA: {dados.get('civp_vacinacao', 'N/A')}. Exposição de lista SUS: {dados.get('lista_vacinacao', 'N/A')}.")
+                                    if dados.get("eac_i") == "sim":
+                                        doc.add_paragraph(f"  - Exames de Análises Clínicas (EAC) Tipo I: Coleta estrita Tipo I: {dados.get('tipo_exames_eac_i', 'N/A')}. Equipamento de refrigeração para diagnóstico: {dados.get('refrigerador_eac_i', 'N/A')}. Depósito adequado de materiais: {dados.get('deposito_eac_i', 'N/A')}. Programa de Garantia da Qualidade (PGQ): {dados.get('pgq_eac_i', 'N/A')}. Correlatos registrados na ANVISA: {dados.get('correlatos_eac_i', 'N/A')}. Utilização exclusiva para fins destinados: {dados.get('utilizacao_correcta_eac_i', 'N/A')}. Manutenção preventiva/calibração ativa: {dados.get('manutencao_equipamentos_eac_i', 'N/A')}. Educação permanente da equipe: {dados.get('capacitacao_eac_i', 'N/A')}.")
+                                else:
+                                    doc.add_paragraph("• O estabelecimento não realiza prestação de serviços farmacêuticos avançados (Setor ausente).")
+                                
+                                # Seção 7: Recursos Humanos
+                                doc.add_heading("7. Recursos Humanos e Saúde do Trabalhador", level=2)
+                                doc.add_paragraph(f"• Quantidade total de funcionários mapeados no local: {dados.get('numero_funcionarios', 0)} colaboradores.")
+                                doc.add_paragraph(f"• Fornecimento e uso de uniformes limpos e adequados: {dados.get('uniformes_funcionarios', 'Não avaliado')}.")
+                                doc.add_paragraph(f"• Disponibilidade de Equipamentos de Proteção Individual (EPIs): {dados.get('epis_serviços_funcionarios', 'Não avaliado')}.")
+                                doc.add_paragraph(f"• Registro de treinamentos e capacitações de pessoal mantidos: {dados.get('capacitacao_funcionarios', 'Não avaliado')}.")
+                                
+                                # Encerramento com assinaturas
+                                doc.add_paragraph("\n\n")
+                                doc.add_paragraph("__________________________________________________")
+                                doc.add_paragraph("Equipe de Fiscalização Sanitária - Autoridade Autuante")
+                                
+                                # --- FINALIZAÇÃO DO BUFFER E DOWNLOAD ---
+                                buffer_word = io.BytesIO()
+                                doc.save(buffer_word)
+                                buffer_word.seek(0)
+                                
+                                st.download_button(
+                                    label="💾 Clique aqui para Baixar Relatório (.docx)",
+                                    data=buffer_word,
+                                    file_name=f"Relatorio_Inspecao_{web_ativa}.docx",
+                                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                    use_container_width=True
+                                )
+                    except Exception as e_docx:
+                        st.error(f"❌ Erro crítico ao processar e estruturar documento do Word: {e_docx}")
             
     with col_menu2:
         st.markdown("### 📄 Relatórios e Documentos Oficiais")
@@ -2493,7 +2729,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     dados_inspecao_atual["marca_modelo_perfuracao_orelha"] = st.text_input("Marca e modelo da pistola de perfuração:", value=str(v_marca_po) if v_marca_po and str(v_marca_po) != "None" else "", key="ti_marca_modelo_perfuracao_orelha")
                 with col_po2:
                     v_lote_po = historico.get("lote_perfuracao_orelha", "")
-                    dados_inspecao_atual["lote_perfuracao_orelha"] = st.text_input("Lote do equipamento/brincos:", value=str(v_lote_po) if v_lote_po and str(v_lote_po) != "None" else "", key="ti_lote_perfuracao_orelha")
+                    dados_inspecao_atual["lote_perfuracao_orelha"] = st.text_input("Lote do equipamento:", value=str(v_lote_po) if v_lote_po and str(v_lote_po) != "None" else "", key="ti_lote_perfuracao_orelha")
                 st.divider()
             else:
                 dados_inspecao_atual["perfuracao_orelha"] = "não"
