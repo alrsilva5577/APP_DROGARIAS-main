@@ -1971,7 +1971,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     st.markdown("### 🩺 Sala de Serviços Farmacêuticos")
                     
                     # --- BLOCO 1: ESTRUTURA GERAL ---
-                    st.markdown("#### 🧱 Infraestrutura e Condições Ambientais")
+                    st.markdown("#### 🧱 Infraestrutura")
                     col_ss_est1, col_ss_est2 = st.columns(2)
                     
                     with col_ss_est1:
@@ -2040,7 +2040,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     st.divider()
 
                     # --- BLOCO 2: HIGIENE DAS MÃOS ---
-                    st.markdown("#### 🧼 Higiene das Mãos e Sanificação")
+                    st.markdown("#### 🧼 Higiene das Mãos")
                     col_ss_hig1, col_ss_hig2 = st.columns(2)
                     
                     with col_ss_hig1:
@@ -2081,7 +2081,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     st.divider()
 
                     # --- BLOCO 3: RESÍDUOS GERADOS ---
-                    st.markdown("#### ☣️ Gerenciamento de Resíduos de Saúde")
+                    st.markdown("#### ☣️ Resíduos de Saúde")
                     col_ss_res1, col_ss_res2 = st.columns(2)
                     
                     with col_ss_res1:
@@ -2101,7 +2101,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                     st.divider()
 
                     # --- BLOCO 4: MATERIAIS E DOCUMENTOS ---
-                    st.markdown("#### 📄 Suporte, Segurança e Documentação")
+                    st.markdown("#### 📄 Suporte e Segurança")
                     col_ss_doc1, col_ss_doc2 = st.columns(2)
                     
                     with col_ss_doc1:
@@ -2182,7 +2182,7 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         )
                         st.write("")
                         
-                        st.markdown("**Possui local destinado à guarda de pertences dos funcionários (armários/escaninhos)?**")
+                        st.markdown("**Possui local destinado à guarda de pertences dos funcionários?**")
                         val_pert_sf = historico.get("local_pertences_sanitarios_funcionarios", "Não avaliado")
                         dados_inspecao_atual["local_pertences_sanitarios_funcionarios"] = st.radio(
                             "Guarda de Pertences:", opcoes_status, index=mapeamento_status.get(val_pert_sf, 0), key="rad_local_pertences_sanitarios_funcionarios", horizontal=True, label_visibility="collapsed"
@@ -2335,17 +2335,327 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                         )
 
 
-    # ==============================================================================
-    # TAB 6: SALA DE SERVIÇOS
+        # ==============================================================================
+    # TAB 6: SALA DE SERVIÇOS (AÇÕES FARMACÊUTICAS AVANÇADAS)
     # ==============================================================================
     with tab_sala:
-        st.write("Aguardando inserção das regras de serviços farmacêuticos...")
+        st.markdown("## 🩺 Seção: Atividades na Sala de Serviços Farmacêuticos")
+        
+        # LÓGICA DE CONDICIONAL MESTRE: Só exibe se a flag foi marcada como 'Sim' na Tab 5
+        if dados_inspecao_atual.get("possui_sala_servicos") != "Sim":
+            st.info("💡 Esta aba só é ativada se o setor 'Sala de Serviços' for marcado como presente na aba 'Áreas Físicas'.")
+        else:
+            # --- 6.1 CADASTRO E CONTROLE GERAL DA SALA ---
+            st.markdown("### 📋 Informações Gerais das Atividades")
+            
+            # Recupera a lista de serviços salvos anteriormente (armazenado como texto separado por vírgula no banco)
+            val_serv_antigos = str(historico.get("servicos_realizados_sala_servicos", ""))
+            lista_serv_padrao = [s.strip() for s in val_serv_antigos.split(",") if s.strip()]
+            
+            opcoes_servicos_sala = [
+                "Aplicação de injetáveis", 
+                "Aferição de pressão arterial", 
+                "Verificação de temperatura corporal", 
+                "Perfuração de lóbulo auricular", 
+                "Dispensação via remota", 
+                "Atenção ou Orientação Farmacêutica", 
+                "Atendimento farmacêutico domiciliar", 
+                "Vacinação", 
+                "Exames de Análises Clínicas (EAC) I"
+            ]
+            
+            st.markdown("**Quais os serviços realizados no estabelecimento?**")
+            servicos_selecionados = st.multiselect(
+                "Serviços ativos:",
+                options=opcoes_servicos_sala,
+                default=[s for s in lista_serv_padrao if s in opcoes_servicos_sala],
+                key="ms_servicos_realizados_sala_servicos"
+            )
+            # Une a lista em uma string corrida separada por vírgula para persistência segura no banco
+            dados_inspecao_atual["servicos_realizados_sala_servicos"] = ", ".join(servicos_selecionados)
 
-    # ==============================================================================
-    # TAB 7: FUNCIONÁRIOS
+            st.write("")
+            col_ss_g1, col_ss_g2, col_ss_g3 = st.columns(3)
+            
+            with col_ss_g1:
+                st.markdown("**Há procedimentos escritos para todas as atividades realizadas (POP)?**")
+                v_pop_ss = historico.get("procedimentos_escritos_sala_servicos", "Não avaliado")
+                dados_inspecao_atual["procedimentos_escritos_sala_servicos"] = st.radio(
+                    label="POP Serviços", options=opcoes_status, index=mapeamento_status.get(v_pop_ss, 0), key="rad_procedimentos_escritos_sala_servicos", horizontal=True, label_visibility="collapsed"
+                )
+                
+            with col_ss_g2:
+                st.markdown("**Há entrega de Declaração de Serviços prestados ao usuário após cada prestação?**")
+                v_dec_ss = historico.get("declaracao_sala_servicos", "Não avaliado") # mapeado para o campo correspondente
+                dados_inspecao_atual["declaracao_sala_servicos"] = st.radio(
+                    label="Declaração Serviços", options=opcoes_status, index=mapeamento_status.get(v_dec_ss, 0), key="rad_declaracao_sala_servicos_bloco_mestre", horizontal=True, label_visibility="collapsed"
+                )
+                
+            with col_ss_g3:
+                st.markdown("**Há registro de higienização da sala de serviços?**")
+                v_limp_ss = historico.get("registro_limpeza_sala_servicos", "Não avaliado")
+                dados_inspecao_atual["registro_limpeza_sala_servicos"] = st.radio(
+                    label="Limpeza Sala", options=opcoes_status, index=mapeamento_status.get(v_limp_ss, 0), key="rad_registro_limpeza_sala_servicos", horizontal=True, label_visibility="collapsed"
+                )
+
+            st.divider()
+
+            # ==============================================================================
+            # DETALHAMENTO DINÂMICO DOS SERVIÇOS SELECIONADOS
+            # ==============================================================================
+            
+            # --- 1) AFERIÇÃO DE PRESSÃO ARTERIAL ---
+            if "Aferição de pressão arterial" in servicos_selecionados:
+                dados_inspecao_atual["pressao_arterial"] = "sim"
+                st.markdown("#### 🩺 Especificações: Aferição de Pressão Arterial")
+                
+                col_pa1, col_pa2 = st.columns([2, 1.5])
+                with col_pa1:
+                    v_marca_pa = historico.get("marca_modelo_pressao_arterial", "")
+                    dados_inspecao_atual["marca_modelo_pressao_arterial"] = st.text_input("Marca e modelo do aparelho para aferição:", value=str(v_marca_pa) if v_marca_pa and str(v_marca_pa) != "None" else "", key="ti_marca_modelo_pressao_arterial")
+                with col_pa2:
+                    st.markdown("**Avaliação da Calibração:**")
+                    v_cal_pa = historico.get("possui_calibracao_pressao_arterial", "Não avaliado")
+                    dados_inspecao_atual["possui_calibracao_pressao_arterial"] = st.radio(
+                        label="Calibração PA", options=opcoes_status, index=mapeamento_status.get(v_cal_pa, 0), key="rad_possui_calibracao_pressao_arterial", horizontal=True, label_visibility="collapsed"
+                    )
+                
+                # Inicializa variáveis para o banco evitar erros de campos nulos
+                dados_cal_pa = {"cert": "", "emp": "", "dt": None, "val": None}
+                dados_aq_pa = {"nf": "", "dt": None, "forn": ""}
+
+                if dados_inspecao_atual["possui_calibracao_pressao_arterial"] in ["C", "NC"]:
+                    v_tipo_pa = historico.get("tipo_comprovacao_pressao_arterial", "Calibração")
+                    idx_tipo_pa = 0 if v_tipo_pa == "Calibração" else 1
+                    tipo_comp_pa = st.radio("Tipo de comprovação:", ["Calibração", "Aquisição recente"], index=idx_tipo_pa, key="rad_tipo_comp_pa", horizontal=True)
+                    dados_inspecao_atual["tipo_comprovacao_pressao_arterial"] = tipo_comp_pa
+
+                    if tipo_comp_pa == "Calibração":
+                        col_pac1, col_pac2, col_pac3, col_pac4 = st.columns(4)
+                        with col_pac1:
+                            v_c1 = historico.get("certificado_calibracao_pressao_arterial", "")
+                            dados_cal_pa["cert"] = st.text_input("Nº certificado:", value=str(v_c1) if v_c1 and str(v_c1) != "None" else "", key="ti_cert_pa")
+                        with col_pac2:
+                            v_c2 = historico.get("empresa_calibracao_pressao_arterial", "")
+                            dados_cal_pa["emp"] = st.text_input("Empresa prestadora:", value=str(v_c2) if v_c2 and str(v_c2) != "None" else "", key="ti_emp_pa")
+                        with col_pac3:
+                            v_c3 = historico.get("data_calibracao_pressao_arterial", None)
+                            dt_c3 = pd.to_datetime(v_c3).date() if v_c3 and not pd.isna(v_c3) else None
+                            dados_cal_pa["dt"] = st.date_input("Data Calibração:", value=dt_c3, key="di_dt_pa")
+                        with col_pac4:
+                            v_c4 = historico.get("validade_calibracao_pressao_arterial", None)
+                            dt_c4 = pd.to_datetime(v_c4).date() if v_c4 and not pd.isna(v_c4) else None
+                            dados_cal_pa["val"] = st.date_input("Validade:", value=dt_c4, key="di_val_pa")
+                    else:
+                        col_paa1, col_paa2, col_paa3 = st.columns(3)
+                        with col_paa1:
+                            v_a1 = historico.get("nota_aquisicao_pressao_arterial", "")
+                            dados_aq_pa["nf"] = st.text_input("Nº Nota Fiscal:", value=str(v_a1) if v_a1 and str(v_a1) != "None" else "", key="ti_nf_pa")
+                        with col_paa2:
+                            v_a2 = historico.get("data_aquisicao_pressao_arterial", None)
+                            dt_a2 = pd.to_datetime(v_a2).date() if v_a2 and not pd.isna(v_a2) else None
+                            dados_aq_pa["dt"] = st.date_input("Data Aquisição:", value=dt_a2, key="di_dt_aq_pa")
+                        with col_paa3:
+                            v_a3 = historico.get("empresa_aquisicao_pressao_arterial", "")
+                            dados_aq_pa["forn"] = st.text_input("Fornecedor:", value=str(v_a3) if v_a3 and str(v_a3) != "None" else "", key="ti_forn_pa")
+                
+                # Atribui o empacotamento das variáveis para envio estável
+                dados_inspecao_atual["certificado_calibracao_pressao_arterial"] = dados_cal_pa["cert"]
+                dados_inspecao_atual["empresa_calibracao_pressao_arterial"] = dados_cal_pa["emp"]
+                dados_inspecao_atual["data_calibracao_pressao_arterial"] = dados_cal_pa["dt"]
+                dados_inspecao_atual["validade_calibracao_pressao_arterial"] = dados_cal_pa["val"]
+                dados_inspecao_atual["nota_aquisicao_pressao_arterial"] = dados_aq_pa["nf"]
+                dados_inspecao_atual["data_aquisicao_pressao_arterial"] = dados_aq_pa["dt"]
+                dados_inspecao_atual["empresa_aquisicao_pressao_arterial"] = dados_aq_pa["forn"]
+                st.divider()
+            else:
+                dados_inspecao_atual["pressao_arterial"] = "não"
+
+            # --- 2) VERIFICAÇÃO DE TEMPERATURA CORPORAL ---
+            if "Verificação de temperatura corporal" in servicos_selecionados:
+                dados_inspecao_atual["t_corporal"] = "sim"
+                st.markdown("#### 🌡️ Especificações: Verificação de Temperatura Corporal")
+                v_marca_tc = historico.get("marca_modelo_t_corporal", "")
+                dados_inspecao_atual["marca_modelo_t_corporal"] = st.text_input(
+                dados_inspecao_atual["marca_modelo_t_corporal"] = st.text_input(
+                    "Marca e modelo do termômetro clínico utilizado:", value=str(v_marca_tc) if v_marca_tc and str(v_marca_tc) != "None" else "", key="ti_marca_modelo_t_corporal"
+                )
+                st.divider()
+            else:
+                dados_inspecao_atual["t_corporal"] = "não"
+
+            # --- 3) PERFURAÇÃO DE LÓBULO AURICULAR ---
+            if "Perfuração de lóbulo auricular" in servicos_selecionados:
+                dados_inspecao_atual["perfuracao_orelha"] = "sim"
+                st.markdown("#### 👂 Especificações: Perfuração de Lóbulo Auricular")
+                col_po1, col_po2 = st.columns(2)
+                with col_po1:
+                    v_marca_po = historico.get("marca_modelo_perfuracao_orelha", "")
+                    dados_inspecao_atual["marca_modelo_perfuracao_orelha"] = st.text_input("Marca e modelo da pistola de perfuração:", value=str(v_marca_po) if v_marca_po and str(v_marca_po) != "None" else "", key="ti_marca_modelo_perfuracao_orelha")
+                with col_po2:
+                    v_lote_po = historico.get("lote_perfuracao_orelha", "")
+                    dados_inspecao_atual["lote_perfuracao_orelha"] = st.text_input("Lote do equipamento/brincos:", value=str(v_lote_po) if v_lote_po and str(v_lote_po) != "None" else "", key="ti_lote_perfuracao_orelha")
+                st.divider()
+            else:
+                dados_inspecao_atual["perfuracao_orelha"] = "não"
+
+            # --- 4) VACINAÇÃO ---
+            if "Vacinação" in servicos_selecionados:
+                dados_inspecao_atual["servico_vacinacao"] = "sim"
+                st.markdown("#### 💉 Especificações: Serviço de Vacinação")
+                col_v1, col_v2 = st.columns(2)
+                
+                with col_v1:
+                    st.markdown("**Possui programa de capacitação sobre vacinação para os profissionais envolvidos?**")
+                    v_cap_v = historico.get("capacitacao_vacinacao", "Não avaliado")
+                    dados_inspecao_atual["capacitacao_vacinacao"] = st.radio(label="Cap Vacina", options=opcoes_status, index=mapeamento_status.get(v_cap_v, 0), key="rad_capacitacao_vacinacao", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Possui equipamento de refrigeração exclusivo para as vacinas?**")
+                    v_ref_v = historico.get("refrigerador_vacinacao", "Não avaliado")
+                    dados_inspecao_atual["refrigerador_vacinacao"] = st.radio(label="Ref Vacina", options=opcoes_status, index=mapeamento_status.get(v_ref_v, 0), key="rad_refrigerador_vacinacao", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Mantém prontuário individual com registro das vacinas aplicadas?**")
+                    v_reg_v = historico.get("registro_vacinacao", "Não avaliado")
+                    dados_inspecao_atual["registro_vacinacao"] = st.radio(label="Reg Vacina", options=opcoes_status, index=mapeamento_status.get(v_reg_v, 0), key="rad_registro_vacinacao", horizontal=True, label_visibility="collapsed")
+                
+                with col_v2:
+                    st.markdown("**Possui comprovação de origem das vacinas?**")
+                    v_orig_v = historico.get("origem_vacinacao", "Não avaliado")
+                    dados_inspecao_atual["origem_vacinacao"] = st.radio(label="Orig Vacina", options=opcoes_status, index=mapeamento_status.get(v_orig_v, 0), key="rad_origem_vacinacao", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Notifica ocorrência de efeitos adversos e erros nos sistemas pertinentes?**")
+                    v_ocor_v = historico.get("ocorrencias_vacinacao", "Não avaliado")
+                    dados_inspecao_atual["ocorrencias_vacinacao"] = st.radio(label="Ocor Vacina", options=opcoes_status, index=mapeamento_status.get(v_ocor_v, 0), key="rad_ocorrencias_vacinacao", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Realiza emissão de CIVP, devidamente credenciado pela ANVISA?**")
+                    v_civp_v = historico.get("civp_vacinacao", "Não avaliado")
+                    dados_inspecao_atual["civp_vacinacao"] = st.radio(label="CIVP Vacina", options=opcoes_status, index=mapeamento_status.get(v_civp_v, 0), key="rad_civp_vacinacao", horizontal=True, label_visibility="collapsed")
+                
+                st.write("")
+                st.markdown("**Possui lista de vacinas integrantes do Sistema Único de Saúde (SUS) exposta de forma visível?**")
+                v_list_v = historico.get("lista_vacinacao", "Não avaliado")
+                dados_inspecao_atual["lista_vacinacao"] = st.radio(label="Lista SUS", options=opcoes_status, index=mapeamento_status.get(v_list_v, 0), key="rad_lista_vacinacao", horizontal=True, label_visibility="collapsed")
+                st.divider()
+            else:
+                dados_inspecao_atual["servico_vacinacao"] = "não"
+            # --- 5) EXAMES DE ANÁLISES CLÍNICAS (EAC) I ---
+            if "Exames de Análises Clínicas (EAC) I" in servicos_selecionados:
+                dados_inspecao_atual["eac_i"] = "sim"
+                st.markdown("#### 🔬 Especificações: Exames de Análises Clínicas (EAC) Tipo I")
+                col_e1, col_e2 = st.columns(2)
+                
+                with col_e1:
+                    st.markdown("**Realiza apenas coleta para testes Tipo I (punção capilar, saliva, swab nasal/orofaringe)?**")
+                    v_t1 = historico.get("tipo_exames_eac_i", "Não avaliado")
+                    dados_inspecao_atual["tipo_exames_eac_i"] = st.radio(label="Tipo EAC", options=opcoes_status, index=mapeamento_status.get(v_t1, 0), key="rad_tipo_exames_eac_i", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Possui equipamento de refrigeração para diagnóstico que necessite dessas condições?**")
+                    v_ref_e = historico.get("refrigerador_eac_i", "Não avaliado")
+                    dados_inspecao_atual["refrigerador_eac_i"] = st.radio(label="Ref EAC", options=opcoes_status, index=mapeamento_status.get(v_ref_e, 0), key="rad_refrigerador_eac_i", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Possui depósito adequado para equipamentos e materiais próprios?**")
+                    v_dep_e = historico.get("deposito_eac_i", "Não avaliado")
+                    dados_inspecao_atual["deposito_eac_i"] = st.radio(label="Dep EAC", options=opcoes_status, index=mapeamento_status.get(v_dep_e, 0), key="rad_deposito_eac_i", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Possui adequado Programa de Garantia da Qualidade (PGQ) para todos os exames realizados?**")
+                    v_pgq_e = historico.get("pgq_eac_i", "Não avaliado")
+                    dados_inspecao_atual["pgq_eac_i"] = st.radio(label="PGQ EAC", options=opcoes_status, index=mapeamento_status.get(v_pgq_e, 0), key="rad_pgq_eac_i", horizontal=True, label_visibility="collapsed")
+                
+                with col_e2:
+                    st.markdown("**Todos os produtos correlatos utilizados no serviço possuem regularização na ANVISA?**")
+                    v_cor_e = historico.get("correlatos_eac_i", "Não avaliado")
+                    dados_inspecao_atual["correlatos_eac_i"] = st.radio(label="Corr EAC", options=opcoes_status, index=mapeamento_status.get(v_cor_e, 0), key="rad_correlatos_eac_i", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Os produtos e equipamentos são utilizados apenas para os fins a que se destinam?**")
+                    v_ut_e = historico.get("utilizacao_correcta_eac_i", "Não avaliado") # mantendo o alias mapeado na tabela original
+                    dados_inspecao_atual["utilizacao_correcta_eac_i"] = st.radio(label="Utiliz EAC", options=opcoes_status, index=mapeamento_status.get(v_ut_e, 0), key="rad_utilizacao_correcta_eac_i", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Realiza devida manutenção preventiva ou calibração dos equipamentos utilizados?**")
+                    v_man_e = historico.get("manutencao_equipamentos_eac_i", "Não avaliado")
+                    dados_inspecao_atual["manutencao_equipamentos_eac_i"] = st.radio(label="Manut EAC", options=opcoes_status, index=mapeamento_status.get(v_man_e, 0), key="rad_manutencao_equipamentos_eac_i", horizontal=True, label_visibility="collapsed")
+                    st.write("")
+                    
+                    st.markdown("**Possui programa de educação permanente com capacitações referentes aos EAC?**")
+                    v_cap_e = historico.get("capacitacao_eac_i", "Não avaliado")
+                    dados_inspecao_atual["capacitacao_eac_i"] = st.radio(label="Cap EAC", options=opcoes_status, index=mapeamento_status.get(v_cap_e, 0), key="rad_capacitacao_eac_i", horizontal=True, label_visibility="collapsed")
+                
+                st.divider()
+            else:
+                dados_inspecao_atual["eac_i"] = "não"
+
+        # ==============================================================================
+    # TAB 7: RECURSOS HUMANOS / FUNCIONÁRIOS
     # ==============================================================================
     with tab_funcionarios:
-        st.write("Aguardando inserção dos dados de EPIs, uniformes e capacitações...")
+        st.markdown("## 👷 Seção: Recursos Humanos e Saúde do Trabalhador")
+        st.markdown("### 📋 Controle de Pessoal, Proteção e Capacitações")
+        
+        # Criação do layout em duas colunas simétricas
+        col_func1, col_func2 = st.columns(2)
+        
+        with col_func1:
+            # 1. Número de funcionários (Tratamento seguro contra nulos ou NaNs do banco)
+            val_num_func = historico.get("numero_funcionarios", 0)
+            try:
+                num_func_padrao = int(val_num_func) if val_num_func is not None and not pd.isna(val_num_func) else 0
+            except ValueError:
+                num_func_padrao = 0
+                
+            dados_inspecao_atual["numero_funcionarios"] = st.number_input(
+                "Número total de funcionários / colaboradores ativos:",
+                min_value=0,
+                value=num_func_padrao,
+                step=1,
+                key="ni_numero_funcionarios"
+            )
+            st.write("")
+            
+            # 2. Uniformes adequados
+            st.markdown("**Os funcionários possuem e utilizam uniformes limpos, adequados e em bom estado de conservação?**")
+            val_uni_f = historico.get("uniformes_funcionarios", "Não avaliado")
+            dados_inspecao_atual["uniformes_funcionarios"] = st.radio(
+                label="Uniformes Funcionários",
+                options=opcoes_status,
+                index=mapeamento_status.get(val_uni_f, 0),
+                key="rad_uniformes_funcionarios",
+                horizontal=True,
+                label_visibility="collapsed"
+            )
+
+        with col_func2:
+            # 3. Equipamentos de Proteção Individual (EPIs)
+            st.markdown("**Há Equipamentos de Proteção Individual (EPIs) adequados e em quantidade suficiente para os serviços realizados pelos colaboradores?**")
+            val_epi_f = historico.get("epis_serviços_funcionarios", "Não avaliado")
+            dados_inspecao_atual["epis_serviços_funcionarios"] = st.radio(
+                label="EPIs Funcionários",
+                options=opcoes_status,
+                index=mapeamento_status.get(val_epi_f, 0),
+                key="rad_epis_servicos_funcionarios",
+                horizontal=True,
+                label_visibility="collapsed"
+            )
+            st.write("")
+            
+            # 4. Treinamentos e Capacitação
+            st.markdown("**Há a devida capacitação/educação continuada de todos os colaboradores para as suas funções, com registros mantidos?**")
+            val_cap_f = historico.get("capacitacao_funcionarios", "Não avaliado")
+            dados_inspecao_atual["capacitacao_funcionarios"] = st.radio(
+                label="Capacitação Funcionários",
+                options=opcoes_status,
+                index=mapeamento_status.get(val_cap_f, 0),
+                key="rad_capacitacao_funcionarios",
+                horizontal=True,
+                label_visibility="collapsed"
+            )
 
     # ==============================================================================
     # 5. FINALIZAR RELATÓRIO E PERSISTIR NO SUPABASE (VERSÃO ATUALIZADA COM TABS 3 E 4)

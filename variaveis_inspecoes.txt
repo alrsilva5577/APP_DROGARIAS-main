@@ -296,34 +296,64 @@ Sub-aba ADM:
 
 
 
+Vamos para a Seção de Sala de Serviços!
+Essa seção tem uma aba própria mas ela só aparece se possui_sala_servicos é "sim".
 
-servicos_realizados_sala_servicos
-procedimentos_escritos_sala_servicos
-registro_limpeza_sala_servicos
+Quais os serviços realizados? (servicos_realizados_sala_servicos)
+Opções para marcar: Aplicação de injetáveis/ Aferição de pressão arterial/ Verificação de temperatura corporal/ Perfuração de lóbulo auricular/ Dispensação via remota/ Atenção ou Orientação Farmacêutica/ Atendimento farmacêutico domiciliar/ Vacinação/ Exames de Análises Clínicas (EAC) I
 
-pressao_arterial
-marca_modelo_pressao_arterial
-possui_calibracao_pressao_arterial
-nota_aquisicao_pressao_arterial
-data_aquisicao_pressao_arterial
-empresa_aquisicao_pressao_arterial
-certificado_calibracao_pressao_arterial
-empresa_calibracao_pressao_arterial
-data_calibracao_pressao_arterial
-validade_calibracao_pressao_arterial
+Há procedimentos escritos para todas as atividades realizadas (POP)? (procedimentos_escritos_sala_servicos) - resposta padrão
 
-t_corporal
-marca_modelo_t_corporal
+Há entrega de Declaração de Serviços prestados ao usuário, após cada prestação de serviço, com as informações pertinentes registradas? (declaracao_sala_servicos) - resposta padrão
 
-perfuracao_orelha
-marca_modelo_perfuracao_orelha
-lote_perfuracao_orelha
+Há registro de higienização da sala de serviços? (registro_limpeza_sala_servicos) - resposta padrão
 
-(funcionarios)
-numero_funcionarios
-uniformes_funcionarios
-epis_serviços_funcionarios
-capacitacao_funcionarios
+Se marcou acima:
+1) Aferição de pressão arterial, colocar "sim" em pressao_arterial e abrir as opções:
+(igual ao que foi feito com termometro ou termohigrometro na aba de controle de T e U)
+- Marca e modelo do aparelho para aferição de pressão arterial (marca_modelo_pressao_arterial)
+- Possui calibração (possui_calibracao_pressao_arterial)
+- Se C ou NC a pergunta acima, abrir opção de marcar Calibração ou Aquisição recente
+- Se Calibração: Nº certificado (certificado_calibracao_pressao_arterial), Empresa prestadora (empresa_calibracao_pressao_arterial), Data Calibração (data_calibracao_pressao_arterial), Validade (validade_calibracao_pressao_arterial)
+- Se Aquisição Recente: Nº Nota Fiscal (nota_aquisicao_pressao_arterial), Data Aquisição (data_aquisicao_pressao_arterial), Fornecedor (empresa_aquisicao_pressao_arterial)
+
+2) Verificação de temperatura corporal, colocar "sim" em t_corporal e abrir as opção:
+- Marca e modelo do termômetro clínico (marca_modelo_t_corporal)
+
+3) Perfuração de lóbulo auricular, colocar "sim" em perfuracao_orelha e abrir opções:
+- Marca e modelo da pistola para perfuração lóbulo auricular (marca_modelo_perfuracao_orelha)
+- Lote do equipamento (lote_perfuracao_orelha)
+
+4) Vacinação, colocar "sim" em servico_vacinacao e abrir opções:
+- Possui programa de capacitação sobre vacinação para os profissionais envolvidos no processo? (capacitacao_vacinacao)
+- Possui equipamento de refrigeração exclusivo para as vacinas? (refrigerador_vacinacao)
+- Mantém prontuário individual com registro das vacinas aplicadas? (registro_vacinacao)
+- Possui comprovação de origem das vacinas? (origem_vacinacao)
+- Notifica ocorrência de efeitos adersos e erros de vacinação nos sistemas pertinentes? (ocorrencias_vacinacao)
+- Realiza emissao de CIVP, devidamente credenciado pela ANVISA? (civp_vacinacao)
+- Possui lista de vacinas do SUS exposta? (lista_vacinacao)
+
+5) Exames de Análises Clínicas (EAC) I, colocar "sim" em eac_i e abri opções:
+- Realiza apenas coleta para testes Tipo I (punção capilar - ponta de dedo, saliva, swab nasal ou orofaríngeo)? (tipo_exames_eac_i)
+- Possui equipamento de refrigeração para diagnóstico que necessite ser armazenado nessas condições? (refrigerador_eac_i)
+- Possui depósito adequado para equipamentos e materiais próprios? (deposito_eac_i)
+- Possui adequado Programa de Garantia da Qualidade (PGQ) para todos os exames realizados? (pgq_eac_i)
+- Todos os produtos correlatos utilizados no serviço possuem regularização na ANVISA? (correlatos_eac_i)
+- Os produtos e equipamentos são utilizados apenas para os fins a que se destinam? (utilizacao_correta_eac_i)
+- Realiza devida manutenção preventiva ou calibração dos equipamentos utilizados? (manutencao_equipamentos_eac_i)
+- Possui programa de educação permanente com capacitações referentes aos EAC? (capacitacao_eac_i)
+
+
+Vamos para a ultima seção, de funcionários:
+- Número de funcionários (numero_funcionarios)
+- Os funcionários possuem uniformes adequados? (uniformes_funcionarios)
+- Há EPIs adequados para os serviços realizados pelos colaboradores? (epis_serviços_funcionarios)
+- Há a devida capacitação de todos os colaboladores, com registros? (capacitacao_funcionarios)
+
+
+
+
+
 
 
 
