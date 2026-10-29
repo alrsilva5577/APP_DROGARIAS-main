@@ -2477,7 +2477,6 @@ elif st.session_state["tela"] == "inspecao_sanitaria":
                 st.markdown("#### 🌡️ Especificações: Verificação de Temperatura Corporal")
                 v_marca_tc = historico.get("marca_modelo_t_corporal", "")
                 dados_inspecao_atual["marca_modelo_t_corporal"] = st.text_input(
-                dados_inspecao_atual["marca_modelo_t_corporal"] = st.text_input(
                     "Marca e modelo do termômetro clínico utilizado:", value=str(v_marca_tc) if v_marca_tc and str(v_marca_tc) != "None" else "", key="ti_marca_modelo_t_corporal"
                 )
                 st.divider()
