@@ -575,7 +575,7 @@ elif st.session_state["tela"] == "menu_opcoes":
 
                                 # 5.7 ADM
                                 if dados.get("possui_adm") == "Sim":
-                                doc.add_paragraph(f"• Área Administrativa / Escritório: Condições estruturais gerais avaliadas como {dados.get('condicoes_estruturais_adm', 'N/A')} e higiênicas como {dados.get('condicoes_higienicas_adm', 'N/A')}. Proteção de barreiras contra pragas: {dados.get('protecao_pragas_adm', 'N/A')}. Adequação de ventilação: {dados.get('ventilacao_adm', 'N/A')} e iluminação: {dados.get('iluminacao_adm', 'N/A')}.")
+                                    doc.add_paragraph(f"• Área Administrativa / Escritório: Condições estruturais gerais avaliadas como {dados.get('condicoes_estruturais_adm', 'N/A')} e higiênicas como {dados.get('condicoes_higienicas_adm', 'N/A')}. Proteção de barreiras contra pragas: {dados.get('protecao_pragas_adm', 'N/A')}. Adequação de ventilação: {dados.get('ventilacao_adm', 'N/A')} e iluminação: {dados.get('iluminacao_adm', 'N/A')}.")
                                 
                                 # --- SEÇÃO 6 ---
                                 doc.add_heading("6. Prática de Serviços Farmacêuticos (RDC ANVISA nº 44/09)", level=2)
@@ -646,8 +646,8 @@ elif st.session_state["tela"] == "menu_opcoes":
                                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                     use_container_width=True
                                 )
-                except Exception as e_docx:
-                    st.error(f"❌ Erro crítico ao processar e estruturar prosa descritiva do Word: {e_docx}")
+                    except Exception as e_docx:
+                        st.error(f"❌ Erro crítico ao processar e estruturar prosa descritiva do Word: {e_docx}")
 
 # ================ FIM DA GERAÇÂO DO RELATÓRIO ==========================================
 
